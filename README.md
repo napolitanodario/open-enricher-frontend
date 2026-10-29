@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000 and enter **1234**. This fixed client-side password is a convenience screen, not authentication. The initial demo contains explicitly illustrative text and frame placeholders. It contains no real pipeline dataset.
+Open http://localhost:3000 and enter **1234**. This fixed client-side password is a convenience screen, not authentication. The workspace starts empty. Import an archive folder to inspect its results; no example dataset is bundled.
 
 ## Import pipeline results
 
@@ -38,9 +38,9 @@ export/
 
 The importer retains the pipeline's JSON formats. It resolves repository-relative frame paths against imported files, including the `_cache` directory. Selecting only the run directory omits a sibling cache or synopsis: select their common parent to include them. Input may be incomplete; unavailable artifacts and malformed JSON produce notices while original files remain inspectable.
 
-The individual-file button next to Import folder is a fallback for **one video from one run at a time**; browsers do not provide directory hierarchy for ordinary file selection. Use folder selection for multiple runs and frame paths.
+Import one folder at a time. Additional folders can be imported into the same workspace, keeping repeated executions distinct.
 
-Data stays in tab memory and is not uploaded or saved in a database. Refreshing requires selecting the files again. Folder imports are snapshots; use reimport to see subsequent pipeline updates. Clear all imports returns to the illustrative workspace. Locking hides the workspace without discarding its current imports.
+Data stays in tab memory and is not uploaded or saved in a database. Refreshing requires selecting the files again. Folder imports are snapshots; use reimport to see subsequent pipeline updates. Clear all imports returns to the empty catalog. Locking hides the workspace without discarding its current imports.
 
 ### Repeated runs
 
@@ -62,7 +62,7 @@ The manifest is an optional proposed pipeline addition. Legacy archives get a vi
 
 - Scenes are the pipeline's fixed analysis windows, not detected cuts.
 - Transcript speaker IDs are preserved. No character identities are guessed.
-- Placeholder slots have no invented sampled timestamps. Future frame indexes use `spans[].window`, boundaries and `frames[].timestamp_seconds` / `file`.
+- Missing frames display an unavailable state, with no invented samples or timestamps. Future frame indexes use `spans[].window`, boundaries and `frames[].timestamp_seconds` / `file`.
 - Transcript clicks select an inspection instant and the nearest frame; subtitles apply only at the selected instant.
 - Evaluator errors and parse failures are excluded from score comparisons, even when the report contains fallback numerical scores.
 - Duration bars start at zero. Precise waterfalls require execution offsets not present in current timing files. VLM window processing may include clip preparation/frame capture. Cached stages show original computation separately and are excluded from executed-duration sums.
@@ -83,8 +83,12 @@ The `out/` directory is a standalone static site. To build for the repository's 
 NEXT_PUBLIC_BASE_PATH=/open-enricher-frontend npm run build
 ```
 
-The supplied GitHub Actions workflow builds and deploys pushes to `main` (or manual dispatch). Enable **Settings → Pages → Source: GitHub Actions** in the frontend repository. Publishing requires a plan/repository configuration that supports Pages. No backend repository access or credentials are needed. Only application code and illustrative demo data are deployed; imported files are never included in the build.
+The supplied GitHub Actions workflow builds and deploys pushes to `main` (or manual dispatch). Enable **Settings → Pages → Source: GitHub Actions** in the frontend repository. Publishing requires a plan/repository configuration that supports Pages. No backend repository access or credentials are needed. Only application code and self-hosted UI fonts are deployed; imported files are never included in the build.
 
 Query parameters retain tab, window, video, stable run ID and comparison. After a reload, import the matching archives again to restore selection. Legacy import identities are session-local.
 
 See [DESIGN_PROPOSAL.md](DESIGN_PROPOSAL.md) for the agreed scope and proposed optional pipeline improvements.
+
+## Live evaluation
+
+Live provider calls are not enabled. See [docs/LIVE_EVALUATION.md](docs/LIVE_EVALUATION.md) for static-hosting options, API key handling and the distinction between local source files and outbound evaluation payloads.

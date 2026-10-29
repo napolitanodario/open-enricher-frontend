@@ -2,6 +2,10 @@
 
 Design proposal · 29 October 2026 · Revised after scope clarification
 
+## Current UI revision
+
+The workspace now starts empty: bundled sample runs and synthetic frame slots have been removed. Import one folder at a time; actual missing frames show an unavailable state. The UI uses self-hosted Manrope, slightly larger secondary text, subtle transitions with reduced-motion support, and syntax highlighting in JSON inspectors. Local-inspection status appears once in a compact note. Live evaluation is an architectural option documented in `docs/LIVE_EVALUATION.md`, not an enabled feature.
+
 ## Purpose and scope
 
 A small, read-only Next.js application for inspecting metadata extraction experiments. The primary task is to select a configuration and a film/episode, inspect its time windows alongside visual and transcript evidence, and understand quality and processing cost.

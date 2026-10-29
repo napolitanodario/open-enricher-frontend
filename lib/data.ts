@@ -13,7 +13,6 @@ export type Run = {
   files: SourceFile[];
   allFiles: SourceFile[];
   warnings: string[];
-  demo?: boolean;
 };
 export type WindowData = {
   start: number;
@@ -322,7 +321,6 @@ export function mergeWindows(
   });
 }
 export async function loadDetails(run: Run): Promise<Details> {
-  if (run.demo) return demoDetails();
   const warnings = [...run.warnings];
   const read = async (suffix: string) =>
     json(
@@ -429,153 +427,5 @@ export async function loadDetails(run: Run): Promise<Details> {
       ...synopsisCandidates,
     ],
     warnings,
-  };
-}
-export function demoRun(variant = false): Run {
-  return {
-    id: variant ? "demo-b" : "demo-a",
-    importId: "demo",
-    folder: "Illustrative data",
-    label: variant ? "demo-run-002" : "demo-run-001",
-    video: "Sample episode",
-    config: {
-      experiment_id: variant ? "02-memory-2" : "01-scene-context",
-      title: variant ? "Memory · 2 windows" : "Full scene context",
-      interval_seconds: 300,
-      vlm_memory_scenes: variant ? 2 : null,
-      visual_only: false,
-    },
-    manifest: { run_id: variant ? "demo-run-002" : "demo-run-001" },
-    result: {
-      status: "success",
-      stages: ["audio", "dialogue", "vlm", "llm"].map((stage) => ({
-        stage,
-        status: "success",
-      })),
-    },
-    score: null,
-    files: [],
-    allFiles: [],
-    warnings: [],
-    demo: true,
-  };
-}
-function demoDetails(): Details {
-  const descriptions = [
-    "Two colleagues discuss an unfinished assignment in a quiet office.",
-    "A meeting introduces a disagreement over the next steps.",
-    "The team reviews the evidence and weighs possible explanations.",
-    "A private conversation reveals a different perspective.",
-    "The group returns to the problem with a revised plan.",
-    "An unexpected call changes the direction of the discussion.",
-    "The colleagues prepare to present their findings.",
-    "The meeting concludes with a provisional agreement.",
-    "A final conversation leaves an unresolved question.",
-  ];
-  const windows = descriptions.map((description, i) => ({
-    start: i * 300,
-    end: i === 8 ? 2575 : (i + 1) * 300,
-    dialogue: {
-      description:
-        "Illustrative dialogue summary. Import pipeline artifacts to see the original generated text.",
-    },
-    visual: {
-      description,
-      subjects_and_objects: ["Colleagues", "Office desk", "Documents"],
-      actions: ["Discussing", "Reviewing documents"],
-      camera_and_shot: "Medium shot with alternating close-ups.",
-      lighting_and_color: "Soft interior lighting with neutral colors.",
-      on_screen_text: [],
-    },
-    frames: [],
-  }));
-  return {
-    windows,
-    audio: [
-      {
-        start_timestamp: 18,
-        end_timestamp: 22,
-        speaker: "SPEAKER_00",
-        text: "Let’s go through the notes one more time. [Demo]",
-      },
-      {
-        start_timestamp: 24,
-        end_timestamp: 28,
-        speaker: "SPEAKER_01",
-        text: "There is something here we should look at together. [Demo]",
-      },
-    ],
-    dialogue: {
-      plot_summary:
-        "A team works through an unresolved problem. This text demonstrates the layout and is not extracted from a real film or episode.",
-    },
-    vlm: {},
-    profile: {
-      recsys_metadata: {
-        primary_genre: "Drama",
-        sub_genres: ["Workplace"],
-        pacing: "Moderate",
-        mood: ["Reflective", "Tense"],
-      },
-      search_and_discovery: {
-        semantic_tags: ["Collaboration", "Decisions"],
-        main_topics: ["Professional relationships"],
-      },
-      audience_profiling: {
-        target_age_group: "Adults",
-        viewer_interests: ["Character-driven stories"],
-      },
-      content_summary: {
-        narrative_hook:
-          "An unresolved assignment tests a team’s trust in one another. [Demo]",
-        visual_style: "Neutral interiors and conversational framing. [Demo]",
-      },
-    },
-    timings: {
-      stages: [
-        {
-          stage: "audio",
-          wall_seconds: 155,
-          spans: [
-            { name: "whisperx_load", seconds: 34 },
-            { name: "whisperx_transcribe", seconds: 42 },
-            { name: "whisperx_align", seconds: 18 },
-            { name: "diarization_infer", seconds: 33 },
-          ],
-        },
-        {
-          stage: "dialogue",
-          wall_seconds: 718,
-          spans: [
-            { name: "plot_load", seconds: 600 },
-            { name: "plot_generate", seconds: 58 },
-            { name: "scene_generate", seconds: 49 },
-          ],
-        },
-        {
-          stage: "vlm",
-          wall_seconds: 2364,
-          spans: [
-            { name: "vlm_load", seconds: 1590 },
-            ...windows.map((w, i) => ({
-              name: "vlm_generate",
-              seconds: 80 + i * 2,
-              window: i + 1,
-            })),
-          ],
-        },
-        {
-          stage: "llm",
-          wall_seconds: 20,
-          spans: [
-            { name: "llm_load", seconds: 8 },
-            { name: "llm_generate", seconds: 9 },
-          ],
-        },
-      ],
-    },
-    synopsis: "",
-    sources: [],
-    warnings: [],
   };
 }

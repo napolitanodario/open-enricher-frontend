@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { JsonCode } from "@/app/json-code";
 import {
   Activity,
-  ArrowDownToLine,
   ArrowLeft,
   ArrowRight,
   Braces,
@@ -13,7 +13,6 @@ import {
   ChevronRight,
   Clock3,
   Columns2,
-  FileJson2,
   Film,
   FolderOpen,
   GitBranch,
@@ -28,7 +27,6 @@ import {
 } from "lucide-react";
 import {
   clock,
-  demoRun,
   Details,
   Doc,
   duration,
@@ -114,7 +112,7 @@ export default function Home() {
     [password, setPassword] = useState(""),
     [passwordError, setPasswordError] = useState(false);
   const [runs, setRuns] = useState<Run[]>([]),
-    [selected, setSelected] = useState("demo-a"),
+    [selected, setSelected] = useState(""),
     [otherId, setOtherId] = useState("");
   const [details, setDetails] = useState<Details | null>(null),
     [otherDetails, setOtherDetails] = useState<Details | null>(null);
@@ -130,13 +128,11 @@ export default function Home() {
   const [sourceOpen, setSourceOpen] = useState(false),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all");
-  const folderInput = useRef<HTMLInputElement>(null),
-    filesInput = useRef<HTMLInputElement>(null);
-  const demoRuns = [demoRun(), demoRun(true)];
-  const available = runs.length ? runs : demoRuns;
+  const folderInput = useRef<HTMLInputElement>(null);
+  const available = runs;
   const run = available.find((r) => r.id === selected) || available[0];
   const other = available.find(
-    (r) => r.id === otherId && r.video === run.video && r.id !== run.id,
+    (r) => r.id === otherId && r.video === run?.video && r.id !== run?.id,
   );
 
   useEffect(() => {
@@ -148,7 +144,11 @@ export default function Home() {
     if (Number(q.get("window")) > 0) setIndex(Number(q.get("window")) - 1);
   }, []);
   useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || !run) {
+      setDetails(null);
+      setOtherDetails(null);
+      return;
+    }
     let active = true;
     setLoading(true);
     setDetails(null);
@@ -173,12 +173,10 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [run.id, other?.id, unlocked]);
+  }, [run?.id, other?.id, unlocked]);
   useEffect(() => {
-    if (!unlocked) return;
+    if (!unlocked || !run) return;
     const q = new URLSearchParams(location.search);
-    if (!runs.length && q.get("run") && !q.get("run")!.startsWith("demo-"))
-      return;
     q.set("tab", tab);
     q.set("window", String(index + 1));
     if (run.manifest.run_id) q.set("run", run.manifest.run_id);
@@ -187,7 +185,7 @@ export default function Home() {
     if (other?.manifest.run_id) q.set("compare", other.manifest.run_id);
     else q.delete("compare");
     history.replaceState(null, "", `${location.pathname}?${q}`);
-  }, [tab, index, unlocked, run.id, other?.id]);
+  }, [tab, index, unlocked, run?.id, other?.id]);
 
   async function onImport(files: File[]) {
     if (!files.length) return;
@@ -235,7 +233,7 @@ export default function Home() {
         );
         setOtherId(compare?.id || "");
         setNotice(
-          `Imported ${accepted.length} run/video ${accepted.length === 1 ? "entry" : "entries"}. Files stay in this tab; reimport after refreshing.`,
+          `Imported ${accepted.length} run/video ${accepted.length === 1 ? "entry" : "entries"}. Reimport to refresh the results.`,
         );
       }
       setCatalog(true);
@@ -244,7 +242,6 @@ export default function Home() {
     } finally {
       setBusy(false);
       if (folderInput.current) folderInput.current.value = "";
-      if (filesInput.current) filesInput.current.value = "";
     }
   }
   const currentWindow = details?.windows[index];
@@ -264,7 +261,8 @@ export default function Home() {
     return (
       <main className="lock-page">
         <div className="lock-brand">
-          <Layers3 size={25} /> open<span>enricher</span>
+          Open<span>Enricher</span>
+          <span className="product-tag">EXPLORER</span>
         </div>
         <form
           className="lock-card"
@@ -315,12 +313,10 @@ export default function Home() {
             Open workspace <ArrowRight size={16} />
           </button>
           <p className="gate-note">
-            A simple entry gate. Local files stay on your device.
+            Enter your workspace password to continue.
           </p>
         </form>
-        <span className="lock-footer">
-          OPENENRICHER / LOCAL EXPERIMENT EXPLORER
-        </span>
+        <span className="lock-footer">OPENENRICHER / EXPERIMENT EXPLORER</span>
       </main>
     );
 
@@ -328,22 +324,15 @@ export default function Home() {
     <div className="app-shell">
       <aside className="rail">
         <button
-          className="brand-mark"
-          aria-label="Open experiment catalog"
-          onClick={() => setCatalog(true)}
-        >
-          <Layers3 size={23} />
-        </button>
-        <div className="rail-divider" />
-        <button
           title="Experiment catalog"
-          className={catalog ? "active" : ""}
+          className={catalog || !run ? "active" : ""}
           onClick={() => setCatalog(true)}
         >
           <FolderOpen size={21} />
         </button>
         <button
           title="Scene explorer"
+          disabled={!run}
           className={!catalog && tab === "Scenes" ? "active" : ""}
           onClick={() => {
             setCatalog(false);
@@ -354,6 +343,7 @@ export default function Home() {
         </button>
         <button
           title="Performance"
+          disabled={!run}
           className={!catalog && tab === "Performance" ? "active" : ""}
           onClick={() => {
             setCatalog(false);
@@ -364,6 +354,7 @@ export default function Home() {
         </button>
         <button
           title="Pipeline"
+          disabled={!run}
           className={!catalog && tab === "Pipeline" ? "active" : ""}
           onClick={() => {
             setCatalog(false);
@@ -384,19 +375,15 @@ export default function Home() {
           >
             <LockKeyhole size={19} />
           </button>
-          <span className="avatar">OE</span>
         </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
           <button className="wordmark" onClick={() => setCatalog(true)}>
-            open<span>enricher</span>
+            Open<span>Enricher</span>
             <span className="product-tag">EXPLORER</span>
           </button>
           <div className="top-actions">
-            <span className="local-status">
-              <i /> Local workspace
-            </span>
             <button
               className="primary small"
               disabled={busy}
@@ -404,13 +391,6 @@ export default function Home() {
             >
               <Upload size={15} />
               {busy ? "Importing…" : "Import folder"}
-            </button>
-            <button
-              className="icon-btn"
-              title="Import individual files when folder selection is unavailable"
-              onClick={() => filesInput.current?.click()}
-            >
-              <FileJson2 size={17} />
             </button>
           </div>
         </header>
@@ -423,13 +403,6 @@ export default function Home() {
             webkitdirectory: "",
             directory: "",
           } as React.InputHTMLAttributes<HTMLInputElement>)}
-          onChange={(e) => void onImport(Array.from(e.target.files || []))}
-        />
-        <input
-          hidden
-          type="file"
-          multiple
-          ref={filesInput}
           onChange={(e) => void onImport(Array.from(e.target.files || []))}
         />
         {error && (
@@ -449,19 +422,7 @@ export default function Home() {
             </button>
           </div>
         )}
-        {run.demo && (
-          <div className="demo-banner">
-            <Info size={14} />
-            <span>
-              <strong>Demo workspace</strong> · Illustrative data and frame
-              placeholders. Import a local archive to inspect real results.
-            </span>
-            <button onClick={() => folderInput.current?.click()}>
-              Import your results <ArrowRight size={13} />
-            </button>
-          </div>
-        )}
-        {catalog ? (
+        {catalog || !run ? (
           <main className="catalog">
             <div className="page-heading">
               <div>
@@ -484,11 +445,7 @@ export default function Home() {
                 <h3>Bring your pipeline results</h3>
                 <p>
                   Select a parent folder containing run archives, reference
-                  synopses and the frame cache. Files stay on your device.
-                </p>
-                <p className="muted">
-                  Individual-file fallback: select files for one video from one
-                  run. Choose a folder to retain hierarchy across runs.
+                  synopses and the frame cache.
                 </p>
               </div>
               <button onClick={() => folderInput.current?.click()}>
@@ -615,7 +572,11 @@ export default function Home() {
               </table>
             </div>
             <div className="catalog-footer">
-              <span>Read-only inspection · No database · No uploads</span>
+              <span>
+                {available.length
+                  ? "Select an execution to explore its results."
+                  : "No experiments imported yet. Choose a folder to get started."}
+              </span>
               {!!runs.length && (
                 <button
                   onClick={() => {
@@ -623,7 +584,7 @@ export default function Home() {
                       confirm("Remove all imported files from this workspace?")
                     ) {
                       setRuns([]);
-                      setSelected("demo-a");
+                      setSelected("");
                       setOtherId("");
                     }
                   }}
@@ -680,9 +641,7 @@ export default function Home() {
                     <Badge
                       tone={run.result.status === "success" ? "green" : ""}
                     >
-                      {run.demo
-                        ? "Demonstration"
-                        : run.result.status || "Imported"}
+                      {run.result.status || "Imported"}
                     </Badge>
                   </div>
                   <div className="run-meta">
@@ -804,7 +763,7 @@ export default function Home() {
               </div>
             )}
             {loading || !details ? (
-              <div className="loading">Reading local artifacts…</div>
+              <div className="loading">Reading artifacts…</div>
             ) : (
               <>
                 {other && otherDetails && (
@@ -1014,18 +973,11 @@ export default function Home() {
             )}
           </>
         )}
-        <footer className="workspace-footer">
-          <span>
-            <i /> Browser-local inspection
-          </span>
-          <span>
-            OpenEnricher <span className="footer-divider">/</span> Experiment
-            explorer
-          </span>
-          <span>No data leaves your device</span>
-        </footer>
+        <div className="inspection-note">
+          Browser local inspection · No data upload
+        </div>
       </div>
-      {sourceOpen && (
+      {sourceOpen && run && (
         <SourceDrawer
           run={other && sourceTarget === other.id ? other : run}
           sources={
@@ -1154,14 +1106,14 @@ function ScenePanel({
                 <span>
                   {frame
                     ? "Image file missing from this import"
-                    : "Demo placeholder · no sampled image"}
+                    : "No frame files were provided for this window"}
                 </span>
               </div>
             )}
             <span className="frame-label">
               {frame
                 ? `SAMPLE ${String(sample + 1).padStart(2, "0")}`
-                : "VISUAL PLACEHOLDER"}
+                : "NO FRAME"}
             </span>
             <span className="frame-time">
               {frame && Number.isFinite(Number(frame.timestamp_seconds))
@@ -1177,15 +1129,12 @@ function ScenePanel({
             )}
           </button>
           <div className="frame-filmstrip">
-            {(w.frames.length
-              ? w.frames
-              : Array.from({ length: 8 }, (_, i) => ({ sample: i + 1 }))
-            ).map((f: Doc, i) => (
+            {w.frames.map((f: Doc, i) => (
               <button
                 key={i}
                 className={sample === i ? "active" : ""}
                 onClick={() => chooseFrame(i)}
-                aria-label={`Select frame ${i + 1}${!w.frames.length ? " placeholder" : ""}`}
+                aria-label={`Select frame ${i + 1}`}
               >
                 <FrameThumb run={run} frame={w.frames[i]} />
                 <span>
@@ -1201,7 +1150,7 @@ function ScenePanel({
               {frame ? (
                 <>Sample time · {clock(Number(frame.timestamp_seconds))}</>
               ) : (
-                "Illustrative slots · timestamps not available"
+                "No sample timestamps available"
               )}
             </span>
             <label>
@@ -1876,48 +1825,97 @@ function Pipeline({ run, details }: { run: Run; details: Details }) {
           <strong>{run.config.visual_only ? "Disabled" : "Enabled"}</strong>
         </span>
       </div>
-      <section className="pipeline-canvas">
-        <div className="pipeline-input">
-          <Film size={20} />
-          <strong>Video input</strong>
-          <span>{run.video}</span>
-        </div>
-        <div className="pipeline-flow">
-          {[...known, "evaluation"].map((name, i) => (
-            <div className="flow-item" key={name}>
-              {i > 0 && <ArrowRight className="flow-arrow" size={19} />}
-              <button
-                className={`pipeline-node ${selected === name ? "active" : ""}`}
-                onClick={() => setSelected(name)}
+      <section className="pipeline-canvas" aria-label="Pipeline data flow">
+        <div className="pipeline-diagram">
+          <svg
+            className="pipeline-edges"
+            viewBox="0 0 1080 340"
+            aria-hidden="true"
+          >
+            <defs>
+              <marker
+                id={`arrow-${run.id.replace(/[^a-z0-9]/gi, "")}`}
+                markerWidth="7"
+                markerHeight="7"
+                refX="6"
+                refY="3.5"
+                orient="auto"
               >
-                <span className="node-index">0{i + 1}</span>
-                {name === "audio" ? (
-                  <Activity size={20} />
-                ) : name === "evaluation" ? (
-                  <Check size={20} />
-                ) : (
-                  <Layers3 size={20} />
-                )}
-                <strong>{stageNames[name] || "Evaluation"}</strong>
-                <span>
-                  {name === "evaluation"
-                    ? evaluationState(run.score)
-                    : stages.find((s) => s.stage === name)?.status ||
-                      "Not recorded"}
-                </span>
-              </button>
-            </div>
+                <path d="M0 0 L7 3.5 L0 7 Z" fill="currentColor" />
+              </marker>
+            </defs>
+            <g
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              markerEnd={`url(#arrow-${run.id.replace(/[^a-z0-9]/gi, "")})`}
+            >
+              <path d="M140 198 H185" />
+              <path d="M325 198 H370" />
+              <path
+                d="M510 198 H555"
+                className={run.config.visual_only ? "edge-muted" : ""}
+              />
+              <path d="M695 198 H740" />
+              <path d="M880 198 H925" />
+              <path d="M80 148 V45 H625 V148" className="edge-video" />
+              <path d="M440 248 V290 H810 V248" className="edge-plot" />
+              <path d="M695 169 H716 V103 H650 V148" className="edge-memory" />
+            </g>
+            <g className="edge-labels" textAnchor="middle">
+              <text x="350" y="135">
+                Transcript
+              </text>
+              <text x="533" y="135">
+                {run.config.visual_only ? "Windows" : "Scene context"}
+              </text>
+              <text x="718" y="266">
+                Visual metadata
+              </text>
+              <text x="905" y="135">
+                Profile
+              </text>
+              <text x="350" y="33" className="label-video">
+                Video windows
+              </text>
+              <text x="625" y="312" className="label-plot">
+                Whole-video plot summary
+              </text>
+              <text x="686" y="88" className="label-memory">
+                Previous-window memory
+              </text>
+            </g>
+          </svg>
+          <div className="diagram-video">
+            <Film size={22} />
+            <strong>Video</strong>
+            <span title={run.video}>{run.video}</span>
+          </div>
+          {[...known, "evaluation"].map((name, i) => (
+            <button
+              key={name}
+              style={{ left: 185 + i * 185 }}
+              className={`pipeline-node diagram-node ${selected === name ? "active" : ""}`}
+              aria-pressed={selected === name}
+              onClick={() => setSelected(name)}
+            >
+              <span className="node-index">0{i + 1}</span>
+              {name === "audio" ? (
+                <Activity size={20} />
+              ) : name === "evaluation" ? (
+                <Check size={20} />
+              ) : (
+                <Layers3 size={20} />
+              )}
+              <strong>{stageNames[name] || "Evaluation"}</strong>
+              <span>
+                {name === "evaluation"
+                  ? evaluationState(run.score)
+                  : stages.find((s) => s.stage === name)?.status ||
+                    "Not recorded"}
+              </span>
+            </button>
           ))}
-        </div>
-        <div className="dependency-lines">
-          <span>Video → Audio + VLM</span>
-          <span>
-            {run.config.visual_only
-              ? "Dialogue → VLM input disabled"
-              : "Dialogue descriptions → VLM"}
-          </span>
-          <span>Plot + visual metadata → LLM profile</span>
-          <span>VLM ↺ previous-window memory</span>
         </div>
       </section>
       <section className="overview-card node-detail">
@@ -1948,13 +1946,8 @@ function Pipeline({ run, details }: { run: Run; details: Details }) {
         ))}
       <details className="config-source">
         <summary>Configuration snapshot · variant.json</summary>
-        <pre>{JSON.stringify(run.config, null, 2)}</pre>
+        <JsonCode text={JSON.stringify(run.config, null, 2)} />
       </details>
-      <p className="muted">
-        The archive does not export a complete DAG. Arrows describe known
-        dependencies; the diagram does not imply concurrency or measured
-        scheduling.
-      </p>
     </>
   );
 }
@@ -2023,17 +2016,6 @@ function SourceDrawer({
       active = false;
     };
   }, [selected, sources]);
-  function download() {
-    const file =
-      sources.find((s) => s.path === selected)?.file ||
-      new Blob([text], { type: "application/json" });
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = selected.split("/").pop() || "demo-artifacts.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside
@@ -2087,13 +2069,10 @@ function SourceDrawer({
               </option>
             ))
           ) : (
-            <option value="">Demo configuration</option>
+            <option value="">Configuration</option>
           )}
         </select>
-        <button className="download-source" onClick={download}>
-          <ArrowDownToLine size={15} /> Download original
-        </button>
-        <pre>{busy ? "Reading artifact…" : text}</pre>
+        <JsonCode text={busy ? "Reading artifact…" : text} />
       </aside>
     </div>
   );
