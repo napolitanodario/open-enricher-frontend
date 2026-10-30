@@ -1054,16 +1054,19 @@ function ScenePanel({
   }
   function chooseTime(t: number) {
     setTime(t);
-    if (w.frames.length) {
-      const nearest = w.frames.reduce(
+    const timedFrames = w.frames
+      .map((frame, index) => ({ frame, index }))
+      .filter(({ frame }) => Number.isFinite(frame.timestamp_seconds));
+    if (timedFrames.length) {
+      const nearest = timedFrames.reduce(
         (best, f, i) =>
-          Math.abs(Number(f.timestamp_seconds) - t) <
-          Math.abs(Number(w.frames[best].timestamp_seconds) - t)
+          Math.abs(f.frame.timestamp_seconds - t) <
+          Math.abs(timedFrames[best].frame.timestamp_seconds - t)
             ? i
             : best,
         0,
       );
-      setSample(nearest);
+      setSample(timedFrames[nearest].index);
     }
   }
   return (
@@ -1120,13 +1123,15 @@ function ScenePanel({
                 ? clock(Number(frame.timestamp_seconds))
                 : "—:—:—"}
             </span>
-            {overlay && !!activeLines.length && (
-              <span className="subtitle">
-                {activeLines
-                  .map((l) => `${l.speaker || "UNKNOWN"}: ${l.text}`)
-                  .join("\n")}
-              </span>
-            )}
+            {overlay &&
+              Number.isFinite(frame?.timestamp_seconds) &&
+              !!activeLines.length && (
+                <span className="subtitle">
+                  {activeLines
+                    .map((l) => `${l.speaker || "UNKNOWN"}: ${l.text}`)
+                    .join("\n")}
+                </span>
+              )}
           </button>
           <div className="frame-filmstrip">
             {w.frames.map((f: Doc, i) => (
@@ -1147,7 +1152,7 @@ function ScenePanel({
           </div>
           <div className="frame-bottom">
             <span>
-              {frame ? (
+              {Number.isFinite(frame?.timestamp_seconds) ? (
                 <>Sample time · {clock(Number(frame.timestamp_seconds))}</>
               ) : (
                 "No sample timestamps available"
@@ -1156,6 +1161,7 @@ function ScenePanel({
             <label>
               <input
                 type="checkbox"
+                disabled={!Number.isFinite(frame?.timestamp_seconds)}
                 checked={overlay}
                 onChange={(e) => setOverlay(e.target.checked)}
               />{" "}
@@ -1163,6 +1169,12 @@ function ScenePanel({
             </label>
           </div>
           {w.frameError && <p className="inline-warning">{w.frameError}</p>}
+          {frame?.recovered && (
+            <p className="inline-warning">
+              Frames added after execution. Sample timestamps are unavailable;
+              dialogue synchronization is disabled.
+            </p>
+          )}
           {frame?.file && <p className="frame-path mono">{frame.file}</p>}
         </section>
         <section className="transcript-card">
@@ -1196,7 +1208,7 @@ function ScenePanel({
               )}
             </select>
           </div>
-          {frame && (
+          {Number.isFinite(frame?.timestamp_seconds) && (
             <p className="inspection-time">
               Inspection time {clock(time)} · nearest sampled frame{" "}
               {clock(Number(frame.timestamp_seconds))}

@@ -176,3 +176,153 @@ test("wrong-shaped optional artifacts do not crash window merging", () => {
     [],
   );
 });
+
+for (const root of ["local", "export/runs/local"]) {
+  test(`late JPEGs recover failed captures when importing ${root}`, async () => {
+    const manifest = {
+      spans: [
+        {
+          window: 1,
+          start: "00:00:00",
+          end: "00:05:00",
+          frames: [],
+          error: "ffmpeg failed",
+        },
+      ],
+    };
+    const cache = `${root}/_cache/episode/frames/same-configuration/scene_01`;
+    const files = [
+      file(`${root}/experiment/variant.json`, variant),
+      file(`${root}/experiment/episode/episode_dialogue.json`, dialogue),
+      file(`${root}/experiment/episode/episode_vlm_frames.json`, manifest),
+      ...Array.from({ length: 40 }, (_, i) =>
+        file(`${cache}/frame_${40 - i}.jpg`, "image"),
+      ),
+      file(`${cache}/other.jpg`, "unrelated"),
+      file(
+        `${root}/_cache/other-video/frames/same-configuration/scene_01/frame_01.jpg`,
+        "wrong video",
+      ),
+      file(
+        `${root}/_cache/episode/frames/other-experiment/scene_01/frame_01.jpg`,
+        "wrong experiment",
+      ),
+    ];
+    const [run] = await importFiles(files, "late");
+    const details = await loadDetails(run);
+    const scene = details.windows[0];
+    assert.equal(scene.frames.length, 40);
+    assert.equal(scene.frameError, undefined);
+    assert.deepEqual(
+      scene.frames.map((f) => f.sample),
+      Array.from({ length: 40 }, (_, i) => i + 1),
+    );
+    assert.ok(
+      scene.frames.every(
+        (f) =>
+          f.recovered &&
+          f.timestamp_seconds === undefined &&
+          findFrame(run, f.file),
+      ),
+    );
+    assert.ok(
+      findFrame(
+        run,
+        "runs/local/_cache/episode/frames/same-configuration/scene_01/frame_1.jpg",
+      ),
+    );
+    const original = run.files.find((s) =>
+      s.path.endsWith("_vlm_frames.json"),
+    )!;
+    assert.deepEqual(JSON.parse(await original.file.text()), manifest);
+  });
+}
+
+test("missing late JPEGs retain capture errors and mismatched boundaries reject recovery", async () => {
+  for (const end of ["00:05:00", "00:04:59"]) {
+    const [run] = await importFiles(
+      [
+        file("local/experiment/variant.json", variant),
+        file("local/experiment/episode/episode_dialogue.json", dialogue),
+        file("local/experiment/episode/episode_vlm_frames.json", {
+          spans: [
+            {
+              window: 1,
+              start: "00:00:00",
+              end,
+              frames: [],
+              error: "capture failed",
+            },
+          ],
+        }),
+        ...(end === "00:04:59"
+          ? [
+              file(
+                "local/_cache/episode/frames/same-configuration/scene_01/frame_01.jpg",
+                "image",
+              ),
+            ]
+          : []),
+      ],
+      "failed",
+    );
+    const details = await loadDetails(run);
+    assert.equal(details.windows[0].frames.length, 0);
+    if (end === "00:05:00")
+      assert.equal(details.windows[0].frameError, "capture failed");
+    else
+      assert.ok(
+        details.warnings.some((w) => w.includes("boundaries do not match")),
+      );
+  }
+});
+
+test("manifest timestamps survive stale errors and local-folder path resolution", async () => {
+  const path =
+    "runs/local/_cache/episode/frames/same-configuration/scene_01/frame_01.jpg";
+  const [run] = await importFiles(
+    [
+      file("local/experiment/variant.json", variant),
+      file("local/experiment/episode/episode_dialogue.json", dialogue),
+      file("local/experiment/episode/episode_vlm_frames.json", {
+        spans: [
+          {
+            window: 1,
+            start: "00:00:00",
+            end: "00:05:00",
+            error: "stale error",
+            frames: [{ file: path, timestamp_seconds: 12.5 }],
+          },
+        ],
+      }),
+      file(path.slice("runs/".length), "image"),
+    ],
+    "indexed",
+  );
+  const details = await loadDetails(run);
+  assert.equal(details.windows[0].frames[0].timestamp_seconds, 12.5);
+  assert.equal(details.windows[0].frames[0].recovered, undefined);
+  assert.equal(details.windows[0].frameError, undefined);
+});
+
+test("late JPEGs work without a frame manifest and prefer immutable run scope", async () => {
+  const [run] = await importFiles(
+    [
+      file("local/experiment/variant.json", variant),
+      file("local/experiment/run.json", { run_id: "run-a" }),
+      file("local/experiment/episode/episode_dialogue.json", dialogue),
+      file(
+        "local/_cache/episode/frames/run-a/scene_01/frame_01.jpg",
+        "current",
+      ),
+      file(
+        "local/_cache/episode/frames/same-configuration/scene_01/frame_02.jpg",
+        "older",
+      ),
+    ],
+    "no-manifest",
+  );
+  const details = await loadDetails(run);
+  assert.equal(details.windows[0].frames.length, 1);
+  assert.ok(details.windows[0].frames[0].file.includes("/run-a/"));
+});
