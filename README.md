@@ -36,7 +36,9 @@ export/
     _cache/<video>/frames/<experiment>/scene_01/frame_01.jpg
 ```
 
-The importer retains the pipeline's JSON formats. It resolves repository-relative frame paths against imported files, including the `_cache` directory. Selecting only the run directory omits a sibling cache or synopsis: select their common parent to include them. Input may be incomplete; unavailable artifacts and malformed JSON produce notices while original files remain inspectable.
+The importer retains the pipeline's JSON formats. It resolves repository-relative frame paths against imported files, including when selecting `local` directly with its `_cache` directory. Selecting only the run directory omits a sibling cache or synopsis: select their common parent to include them. Input may be incomplete; unavailable artifacts and malformed JSON produce notices while original files remain inspectable.
+
+JPEGs generated after a failed capture are also supported: include them under `_cache/<video>/frames/<experiment_id>/scene_01/frame_01.jpg` (or use a run ID instead of the experiment ID for immutable evidence), then reimport the folder. When a scene has no indexed samples, the viewer discovers `frame_<number>.jpg` / `.jpeg` files and orders them numerically, even if `_vlm_frames.json` is absent or records a capture error. An available recovered image suppresses the old capture error in the scene panel; the original JSON remains inspectable. Recovery never overrides conflicting scene boundaries. Without indexed timestamps, recovered images can be browsed but have no dialogue synchronization; timestamps are not guessed from filenames. An existing frame index retains its recorded timestamps.
 
 Import one folder at a time. Additional folders can be imported into the same workspace, keeping repeated executions distinct.
 
@@ -62,7 +64,7 @@ The manifest is an optional proposed pipeline addition. Legacy archives get a vi
 
 - Scenes are the pipeline's fixed analysis windows, not detected cuts.
 - Transcript speaker IDs are preserved. No character identities are guessed.
-- Missing frames display an unavailable state, with no invented samples or timestamps. Future frame indexes use `spans[].window`, boundaries and `frames[].timestamp_seconds` / `file`.
+- Missing frames display an unavailable state, with no invented samples or timestamps. Frame indexes use `spans[].window`, boundaries and `frames[].timestamp_seconds` / `file`; later JPEG exports can be browsed without timestamps as described above.
 - Transcript clicks select an inspection instant and the nearest frame; subtitles apply only at the selected instant.
 - Evaluator errors and parse failures are excluded from score comparisons, even when the report contains fallback numerical scores.
 - Duration bars start at zero. Precise waterfalls require execution offsets not present in current timing files. VLM window processing may include clip preparation/frame capture. Cached stages show original computation separately and are excluded from executed-duration sums.

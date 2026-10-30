@@ -20,6 +20,7 @@ export type WindowData = {
   dialogue: Doc;
   visual: Doc;
   frames: Doc[];
+  windowNumber?: number;
   frameError?: string;
 };
 export type Details = {
@@ -250,10 +251,67 @@ export async function importFiles(
 export function findFrame(run: Run, path: string): SourceFile | undefined {
   const target = normalize(path);
   if (!target || target.split("/").includes("..")) return undefined;
+  const cachePath = target.startsWith("runs/local/_cache/")
+    ? `${archiveRoot(run)}/${target.slice("runs/local/".length)}`
+    : undefined;
   const matches = run.allFiles.filter(
-    (s) => s.path === target || s.path.endsWith(`/${target}`),
+    (s) =>
+      s.path === target ||
+      s.path.endsWith(`/${target}`) ||
+      s.path === cachePath,
   );
   return matches.length === 1 ? matches[0] : undefined;
+}
+function archiveRoot(run: Run): string {
+  return run.folder.split("/").slice(0, -2).join("/");
+}
+
+// Later frame exports may leave the failed capture manifest untouched.
+// Only infer scene membership from the pipeline's exact cache hierarchy;
+// filenames provide ordering, never video timestamps.
+function recoverFrames(run: Run, windows: WindowData[], document: Doc) {
+  const spans: Doc[] = Array.isArray(document.spans) ? document.spans : [];
+  const base = `${archiveRoot(run)}/_cache/${run.video}/frames/`;
+  const scopes = [run.manifest.run_id, run.config.experiment_id].filter(
+    (scope): scope is string =>
+      typeof scope === "string" &&
+      !!scope &&
+      !/[\\/]/.test(scope) &&
+      scope !== "..",
+  );
+  const scope = scopes.find((scope) =>
+    run.allFiles.some((source) => source.path.startsWith(`${base}${scope}/`)),
+  );
+  for (const window of windows) {
+    const sceneNumber = window.windowNumber!;
+    const span = spans.find((span) => span?.window === sceneNumber);
+    // Do not attach a cache scene whose manifest describes another interval.
+    if (
+      span &&
+      (seconds(span.start) !== window.start || seconds(span.end) !== window.end)
+    )
+      continue;
+    if (!window.frames.length && scope) {
+      const prefix = `${base}${scope}/scene_${String(sceneNumber).padStart(2, "0")}/`;
+      window.frames = run.allFiles
+        .filter(
+          (source) =>
+            source.path.startsWith(prefix) &&
+            /^frame_\d+\.jpe?g$/i.test(source.path.slice(prefix.length)),
+        )
+        .map((source) => ({
+          file: source.path,
+          sample: Number(
+            source.path.slice(prefix.length).match(/^frame_(\d+)/i)![1],
+          ),
+          recovered: true,
+        }))
+        .sort((a, b) => a.sample - b.sample);
+    }
+    if (window.frames.some((frame) => findFrame(run, frame.file))) {
+      window.frameError = undefined;
+    }
+  }
 }
 export function mergeWindows(
   dialogue: Doc,
@@ -295,6 +353,7 @@ export function mergeWindows(
     return {
       start,
       end,
+      windowNumber: index + 1,
       dialogue: ds.length ? d : {},
       visual,
       frames: Array.isArray(frameSpan?.frames)
@@ -397,6 +456,7 @@ export async function loadDetails(run: Run): Promise<Details> {
     );
   }
   const windows = mergeWindows(dialogue, vlm, frameDocument, warnings);
+  recoverFrames(run, windows, frameDocument);
   if (a && !Array.isArray(a))
     warnings.push("Audio artifact: expected an array of transcript lines.");
   return {
