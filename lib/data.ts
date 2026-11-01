@@ -1,3 +1,10 @@
+import {
+  HardwareData,
+  measurement,
+  parsePerformanceCsv,
+  parseResourceCsv,
+} from "./performance";
+
 export type Doc = Record<string, any>;
 export type SourceFile = { path: string; file: File };
 export type Run = {
@@ -29,6 +36,7 @@ export type Details = {
   vlm: Doc;
   profile: Doc;
   timings: Doc;
+  hardware: HardwareData;
   windows: WindowData[];
   synopsis: string;
   sources: SourceFile[];
@@ -429,6 +437,71 @@ export async function loadDetails(run: Run): Promise<Details> {
         ? s.spans.filter((v: Doc) => v && typeof v.name === "string")
         : [],
     }));
+  // CSVs live beside the per-video directories, scoped to this exact archive.
+  const parent = run.folder.slice(0, run.folder.lastIndexOf("/"));
+  const performanceSources = run.allFiles.filter((source) =>
+    [
+      `${parent}/performance/${run.video}.csv`,
+      `${parent}/performance/${run.video}_vram.csv`,
+      // Individual-file selection retains one video's files in a flat folder.
+      ...(run.folder === "local-import/single-run/video"
+        ? [
+            `${run.folder}/${run.video}.csv`,
+            `${run.folder}/${run.video}_vram.csv`,
+          ]
+        : []),
+    ].includes(source.path),
+  );
+  const hardware: HardwareData = { spans: [], samples: [] };
+  for (const source of performanceSources) {
+    const notices: string[] = [];
+    try {
+      const text = await source.file.text();
+      if (source.path.endsWith(`/${run.video}_vram.csv`))
+        hardware.samples = parseResourceCsv(text, notices);
+      else
+        hardware.spans = parsePerformanceCsv(
+          text,
+          {
+            experiment: run.config.experiment_id,
+            video: run.video,
+          },
+          notices,
+        );
+    } catch (e) {
+      notices.push(e instanceof Error ? e.message : "Could not read CSV");
+    }
+    warnings.push(...notices.map((notice) => `${source.path}: ${notice}`));
+  }
+  if (!hardware.spans.length) {
+    hardware.spans = timings.stages.flatMap((stage: Doc) =>
+      stage.spans.map((span: Doc) => ({
+        stage: stage.stage,
+        name: span.name,
+        window: measurement(span.window),
+        seconds: measurement(span.seconds),
+        reserved: measurement(span.vram_reserved_mib),
+        allocated: measurement(span.vram_allocated_mib),
+      })),
+    );
+  }
+  // CSV-only timings retain per-operation durations, without inventing stage walls.
+  if (!timings.stages.length && hardware.spans.length) {
+    timings.stages = [...new Set(hardware.spans.map((s) => s.stage))].map(
+      (stage) => ({
+        stage,
+        spans: hardware.spans
+          .filter((s) => s.stage === stage)
+          .map((s) => ({
+            name: s.name,
+            window: s.window,
+            seconds: s.seconds ?? undefined,
+            vram_reserved_mib: s.reserved,
+            vram_allocated_mib: s.allocated,
+          })),
+      }),
+    );
+  }
   if (d && !Array.isArray((d as Doc).scenes))
     warnings.push("Dialogue artifact: expected scenes array.");
   if (v && !Array.isArray((v as Doc).scene_timeline))
@@ -473,10 +546,12 @@ export async function loadDetails(run: Run): Promise<Details> {
     vlm,
     profile,
     timings,
+    hardware,
     windows,
     synopsis,
     sources: [
       ...run.files,
+      ...performanceSources.filter((s) => !run.files.includes(s)),
       ...run.allFiles.filter(
         (s) =>
           s.path ===

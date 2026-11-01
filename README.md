@@ -24,6 +24,9 @@ export/
     <experiment-or-run>/
       variant.json
       run.json                   # optional, recommended for repeated runs
+      performance/               # optional hardware and operation metrics
+        <video>.csv
+        <video>_vram.csv
       <video>/
         result.json
         score.json
@@ -68,6 +71,8 @@ The manifest is an optional proposed pipeline addition. Legacy archives get a vi
 - Transcript clicks select an inspection instant and the nearest frame; subtitles apply only at the selected instant.
 - Evaluator errors and parse failures are excluded from score comparisons, even when the report contains fallback numerical scores.
 - Duration bars start at zero. Precise waterfalls require execution offsets not present in current timing files. VLM window processing may include clip preparation/frame capture. Cached stages show original computation separately and are excluded from executed-duration sums.
+- The Performance tab imports `performance/<video>.csv` (duration and PyTorch reserved/allocated VRAM peaks per operation) and `performance/<video>_vram.csv` (`t_seconds,vram_device_mib,ram_mib,cpu_cores`, sampled every five seconds). Include the experiment directory when importing; selecting only a video directory omits these sibling CSVs. Files are matched by exact archive path and video, and operation rows must match the experiment and video identity. Original CSVs remain available in the source drawer.
+- Hardware charts share an elapsed-time cursor and support A/B comparison with common axes. Time starts at the video pipeline launch, not at a video timestamp; the last sample is not the exact completion time. Gaps and unavailable values remain empty. Device VRAM includes other processes on the GPU; RAM is process resident memory and CPU is average busy cores since the preceding sample (not percent, and unavailable on the first sample). Memory is converted from MiB to GiB. PyTorch operation peaks differ from driver readings; reused operations show historical peaks. No stage/resource alignment is inferred without operation start offsets. Older two-column VRAM CSVs and archives without CSVs remain supported, with timing JSON peaks used as a fallback. Operation durations from CSV alone never substitute for stage wall durations.
 - The pipeline diagram documents known dependencies. It is not an exported DAG or execution schedule.
 - Video playback is outside this first release.
 

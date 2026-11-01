@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { JsonCode } from "@/app/json-code";
+import { HardwarePerformance } from "@/app/hardware-performance";
 import {
   Activity,
   ArrowLeft,
@@ -1574,12 +1575,14 @@ function Performance({
       <div className="performance-stats">
         <div>
           <span>Executed stage wall durations</span>
-          <strong>{stages.length ? duration(executed) : "—"}</strong>
+          <strong>
+            {stages.some(validDuration) ? duration(executed) : "—"}
+          </strong>
           <small>Sum of recorded stages · excludes reused work</small>
         </div>
         <div>
           <span>Original cached computation</span>
-          <strong>{duration(cached)}</strong>
+          <strong>{stages.some(validDuration) ? duration(cached) : "—"}</strong>
           <small>Artifact reference · not executed in this run</small>
         </div>
         <div>
@@ -1771,9 +1774,11 @@ function Performance({
                     <div className="timing-coverage">
                       Recorded phase sum: {duration(sum)} · stage wall:{" "}
                       {duration(stage.wall_seconds)}.{" "}
-                      {sum > stage.wall_seconds
-                        ? "Phase totals exceed wall duration; possible nesting or inconsistent instrumentation."
-                        : "Gap positions and phase overlap are not recorded; no synthetic spans added."}
+                      {!validDuration(stage)
+                        ? "Stage wall duration is unavailable in the CSV; phase sums are not a substitute."
+                        : sum > stage.wall_seconds
+                          ? "Phase totals exceed wall duration; possible nesting or inconsistent instrumentation."
+                          : "Gap positions and phase overlap are not recorded; no synthetic spans added."}
                     </div>
                   </div>
                 )}
@@ -1782,6 +1787,14 @@ function Performance({
           })}
         </section>
       )}
+      <HardwarePerformance
+        key={`${run.id}:${other?.id || ""}`}
+        run={run}
+        details={d}
+        other={other}
+        otherDetails={otherDetails}
+        onWindow={onWindow}
+      />
     </>
   );
 }
