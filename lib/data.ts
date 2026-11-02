@@ -3,6 +3,7 @@ import {
   measurement,
   parsePerformanceCsv,
   parseResourceCsv,
+  timestampRange,
 } from "./performance";
 
 export type Doc = Record<string, any>;
@@ -453,6 +454,34 @@ export async function loadDetails(run: Run): Promise<Details> {
     ].includes(source.path),
   );
   const hardware: HardwareData = { spans: [], samples: [] };
+  const deviceSource = run.allFiles.find(
+    (s) => s.path === `${parent}/performance/device.json`,
+  );
+  if (deviceSource) {
+    const device = object(await json(deviceSource, warnings));
+    hardware.device = {
+      recorded_at:
+        typeof device.recorded_at === "string" ? device.recorded_at : undefined,
+      cuda_version:
+        typeof device.cuda_version === "string"
+          ? device.cuda_version
+          : undefined,
+      devices: (Array.isArray(device.devices) ? device.devices : [])
+        .filter((d: Doc) => d && typeof d.name === "string")
+        .map((d: Doc) => ({
+          name: d.name,
+          total_memory_mib: measurement(d.total_memory_mib),
+        })),
+      host: {
+        cpu_model:
+          typeof device.host?.cpu_model === "string"
+            ? device.host.cpu_model
+            : undefined,
+        cpu_count: measurement(device.host?.cpu_count),
+        ram_total_mib: measurement(device.host?.ram_total_mib),
+      },
+    };
+  }
   for (const source of performanceSources) {
     const notices: string[] = [];
     try {
@@ -473,17 +502,44 @@ export async function loadDetails(run: Run): Promise<Details> {
     }
     warnings.push(...notices.map((notice) => `${source.path}: ${notice}`));
   }
-  if (!hardware.spans.length) {
-    hardware.spans = timings.stages.flatMap((stage: Doc) =>
-      stage.spans.map((span: Doc) => ({
-        stage: stage.stage,
-        name: span.name,
-        window: measurement(span.window),
-        seconds: measurement(span.seconds),
-        reserved: measurement(span.vram_reserved_mib),
-        allocated: measurement(span.vram_allocated_mib),
-      })),
-    );
+  const jsonSpans = timings.stages.flatMap((stage: Doc) =>
+    stage.spans.map((span: Doc) => ({
+      ...timestampRange(span.started_at, span.ended_at),
+      ...(typeof span.model_id === "string" ? { modelId: span.model_id } : {}),
+      ...(Number.isInteger(span.attempt) && span.attempt >= 1
+        ? { attempt: span.attempt }
+        : {}),
+      stage: stage.stage,
+      name: span.name,
+      window: measurement(span.window),
+      seconds: measurement(span.seconds),
+      reserved: measurement(span.vram_reserved_mib),
+      allocated: measurement(span.vram_allocated_mib),
+    })),
+  );
+  if (!hardware.spans.length) hardware.spans = jsonSpans;
+  else {
+    const used = new Set<number>();
+    hardware.spans = hardware.spans.map((span) => {
+      const index = jsonSpans.findIndex(
+        (s: typeof span, i: number) =>
+          !used.has(i) &&
+          s.stage === span.stage &&
+          s.name === span.name &&
+          s.window === span.window,
+      );
+      if (index < 0) return span;
+      used.add(index);
+      const original = jsonSpans[index];
+      return {
+        ...span,
+        ...(original.modelId ? { modelId: original.modelId } : {}),
+        ...(original.attempt ? { attempt: original.attempt } : {}),
+        ...(span.startedAt === undefined && original.startedAt !== undefined
+          ? { startedAt: original.startedAt, endedAt: original.endedAt }
+          : {}),
+      };
+    });
   }
   // CSV-only timings retain per-operation durations, without inventing stage walls.
   if (!timings.stages.length && hardware.spans.length) {
@@ -496,6 +552,12 @@ export async function loadDetails(run: Run): Promise<Details> {
             name: s.name,
             window: s.window,
             seconds: s.seconds ?? undefined,
+            ...(s.startedAt !== undefined
+              ? {
+                  started_at: new Date(s.startedAt).toISOString(),
+                  ended_at: new Date(s.endedAt!).toISOString(),
+                }
+              : {}),
             vram_reserved_mib: s.reserved,
             vram_allocated_mib: s.allocated,
           })),
@@ -552,6 +614,7 @@ export async function loadDetails(run: Run): Promise<Details> {
     sources: [
       ...run.files,
       ...performanceSources.filter((s) => !run.files.includes(s)),
+      ...(deviceSource ? [deviceSource] : []),
       ...run.allFiles.filter(
         (s) =>
           s.path ===
