@@ -3,32 +3,81 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: [Validate development preview]
+    branches: [feature/evaluation-performance-redesign]
+    types: [completed]
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out stable application
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: production
+          persist-credentials: false
+      - name: Check out development application
+        uses: actions/checkout@v4
+        with:
+          ref: feature/evaluation-performance-redesign
+          path: development
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run typecheck
-      - run: npm run build
+          cache-dependency-path: |
+            production/package-lock.json
+            development/package-lock.json
+      - name: Install stable dependencies
+        working-directory: production
+        run: npm ci
+      - name: Verify stable application
+        working-directory: production
+        run: |
+          npm test
+          npm run typecheck
+      - name: Build stable application
+        working-directory: production
+        run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      - name: Install development dependencies
+        working-directory: development
+        run: npm ci
+      - name: Verify development application
+        working-directory: development
+        run: |
+          npm test
+          npm run typecheck
+      - name: Build development application
+        working-directory: development
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}/dev
+          NEXT_PUBLIC_DEPLOYMENT_CHANNEL: development
+          NEXT_PUBLIC_PRODUCTION_BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Assemble stable and development site
+        run: |
+          mkdir -p site/dev
+          cp -a production/out/. site/
+          cp -a development/out/. site/dev/
+          touch site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: out
+          path: site
   deploy:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

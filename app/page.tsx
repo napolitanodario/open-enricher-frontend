@@ -57,6 +57,24 @@ const tabs: Tab[] = [
   "Performance",
   "Pipeline",
 ];
+function DevelopmentNotice() {
+  if (process.env.NEXT_PUBLIC_DEPLOYMENT_CHANNEL !== "development") return null;
+  return (
+    <aside className="dev-preview-banner" aria-label="Development preview">
+      <div>
+        <strong>Development preview</strong>
+        <span>Evaluation & performance redesign</span>
+      </div>
+      <a
+        href={process.env.NEXT_PUBLIC_PRODUCTION_BASE_PATH || "/"}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Stable version <ArrowRight size={14} />
+      </a>
+    </aside>
+  );
+}
 function Empty({
   title,
   children,
@@ -275,6 +293,7 @@ export default function Home() {
             } else setPasswordError(true);
           }}
         >
+          <DevelopmentNotice />
           <div className="lock-symbol">
             <LockKeyhole size={23} />
           </div>
@@ -359,6 +378,7 @@ export default function Home() {
             </button>
           </div>
         </header>
+        <DevelopmentNotice />
         <input
           hidden
           type="file"

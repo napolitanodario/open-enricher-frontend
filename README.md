@@ -107,3 +107,7 @@ The **Evaluation** tab displays the generated plot summary, the imported referen
 ## Link after GitHub Pages deployment
 
 https://napolitanodario.github.io/open-enricher-frontend/
+
+Development preview: https://napolitanodario.github.io/open-enricher-frontend/dev/
+
+See [Development preview](docs/DEVELOPMENT_PREVIEW.md) for branches and deployment updates.
