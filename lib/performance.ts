@@ -5,53 +5,17 @@ export type PerformanceSpan = {
   seconds: number | null;
   reserved: number | null;
   allocated: number | null;
-  startedAt?: number;
-  endedAt?: number;
-  modelId?: string;
-  attempt?: number;
 };
 export type ResourceSample = {
   t: number;
   vram: number | null;
   ram: number | null;
   cpu: number | null;
-  timestamp?: number;
 };
 export type HardwareData = {
   spans: PerformanceSpan[];
   samples: ResourceSample[];
-  device?: DeviceSnapshot | null;
 };
-export type DeviceSnapshot = {
-  recorded_at?: string;
-  cuda_version?: string;
-  devices: { name: string; total_memory_mib: number | null }[];
-  host: {
-    cpu_model?: string;
-    cpu_count: number | null;
-    ram_total_mib: number | null;
-  };
-};
-
-export function timestamp(value: unknown): number | null {
-  if (
-    typeof value !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
-      value,
-    )
-  )
-    return null;
-  const n = Date.parse(value);
-  return Number.isFinite(n) ? n : null;
-}
-export function timestampRange(
-  start: unknown,
-  end: unknown,
-): { startedAt: number; endedAt: number } | {} {
-  const a = timestamp(start),
-    b = timestamp(end);
-  return a !== null && b !== null && b >= a ? { startedAt: a, endedAt: b } : {};
-}
 
 // Empty measurements are unavailable, never zero. Keep the CSV's MiB and cores.
 export function measurement(value: unknown): number | null {
@@ -145,7 +109,6 @@ export function parsePerformanceCsv(
     )
       missing++;
     spans.push({
-      ...timestampRange(row.started_at, row.ended_at),
       stage: row.stage,
       name: row.span,
       window:
@@ -156,13 +119,6 @@ export function parsePerformanceCsv(
       reserved: measurement(row.vram_reserved_mib),
       allocated: measurement(row.vram_allocated_mib),
     });
-    if (
-      (row.started_at || row.ended_at) &&
-      !("startedAt" in spans[spans.length - 1])
-    )
-      warnings.push(
-        `Operation ${row.span}: invalid timestamp interval; duration remains available.`,
-      );
   }
   if (skipped)
     warnings.push(
@@ -199,18 +155,11 @@ export function parseResourceCsv(
     )
       missing++;
     samples.push({
-      ...(timestamp(row.timestamp) !== null
-        ? { timestamp: timestamp(row.timestamp)! }
-        : {}),
       t,
       vram: measurement(row.vram_device_mib),
       ram: measurement(row.ram_mib),
       cpu: measurement(row.cpu_cores),
     });
-    if (row.timestamp && timestamp(row.timestamp) === null)
-      warnings.push(
-        `Hardware sample at ${t}s: invalid timestamp; elapsed time remains available.`,
-      );
   }
   if (skipped)
     warnings.push(

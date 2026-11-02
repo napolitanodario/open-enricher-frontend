@@ -149,7 +149,6 @@ test("run-scoped CSV lookup separates repeated configurations and videos and exp
   assert.equal(b.hardware.samples[0].vram, 513);
   assert.equal(a.hardware.spans.length, 1);
   assert.equal(a.hardware.spans[0].reserved, 2048);
-  assert.equal(a.hardware.spans[0].modelId, "model");
   assert.equal(a.timings.stages[0].spans[0].model_id, "model");
   assert.equal(a.timings.stages[0].wall_seconds, 50);
   assert.equal(isCached(runs[0], "vlm"), true);

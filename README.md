@@ -27,7 +27,6 @@ export/
       performance/               # optional hardware and operation metrics
         <video>.csv
         <video>_vram.csv
-        device.json             # optional GPU/CPU/RAM snapshot
       <video>/
         result.json
         score.json
@@ -71,12 +70,9 @@ The manifest is an optional proposed pipeline addition. Legacy archives get a vi
 - Missing frames display an unavailable state, with no invented samples or timestamps. Frame indexes use `spans[].window`, boundaries and `frames[].timestamp_seconds` / `file`; later JPEG exports can be browsed without timestamps as described above.
 - Transcript clicks select an inspection instant and the nearest frame; subtitles apply only at the selected instant.
 - Evaluator errors and parse failures are excluded from score comparisons, even when the report contains fallback numerical scores.
-- Timestamped exports provide `started_at` / `ended_at` on stage and operation JSON documents and operation CSV rows, and `timestamp` on hardware CSV samples. Performance uses those ISO 8601 clocks for stage envelopes, individual windows, gaps and overlapping operations. The first hardware timestamp anchors the sample clock; actual sample timestamps preserve polling drift. Each execution has its own relative origin when compared side by side.
-- Cached stages retain their original durations and peaks. Their historical timestamps are excluded from the active execution timeline. Older exports show phase duration composition and their available hardware sampling grid. Stage wall durations remain separate from operation sums, which can include overlapping spans.
-- Import the experiment folder to include `performance/<video>.csv`, `performance/<video>_vram.csv` and optional `performance/device.json`. Hardware CSVs support `timestamp,t_seconds,vram_device_mib,ram_mib,cpu_cores` and the previous formats without timestamps or RAM/CPU. Device snapshots show visible GPUs, CPU, logical CPU count, host RAM and CUDA version. Original JSON and CSV sources remain inspectable.
-- Moving across a chart updates a shared cursor across the traces and all resource charts. Focus a resource chart and use arrow keys, Home or End for keyboard inspection. A/B charts are in separate columns with common scales. Sample gaps remain empty; unavailable readings display a dash. Timestamped samples support stage labels at the inspected instant. Legacy samples retain their own elapsed-time origin when clock alignment is unavailable.
-- Device VRAM includes activity from all processes on the busiest visible GPU. RAM tracks process resident memory; CPU tracks average busy cores between samples and is absent on the first sample. Memory values use GiB, converted from CSV MiB by dividing by 1024. Operation peaks come from PyTorch's allocator.
-- Comparison sections share one heading and one grid row for the two executions across Scenes, Overview, Evaluation, Performance and Pipeline. Cards grow together to keep subsequent sections aligned. On smaller screens, each row stacks A then B.
+- Duration bars start at zero. Precise waterfalls require execution offsets not present in current timing files. VLM window processing may include clip preparation/frame capture. Cached stages show original computation separately and are excluded from executed-duration sums.
+- The Performance tab imports `performance/<video>.csv` (duration and PyTorch reserved/allocated VRAM peaks per operation) and `performance/<video>_vram.csv` (`t_seconds,vram_device_mib,ram_mib,cpu_cores`, sampled every five seconds). Include the experiment directory when importing; selecting only a video directory omits these sibling CSVs. Files are matched by exact archive path and video, and operation rows must match the experiment and video identity. Original CSVs remain available in the source drawer.
+- Hardware charts share an elapsed-time cursor and support A/B comparison with common axes. Time starts at the video pipeline launch, not at a video timestamp; the last sample is not the exact completion time. Gaps and unavailable values remain empty. Device VRAM includes other processes on the GPU; RAM is process resident memory and CPU is average busy cores since the preceding sample (not percent, and unavailable on the first sample). Memory is converted from MiB to GiB. PyTorch operation peaks differ from driver readings; reused operations show historical peaks. No stage/resource alignment is inferred without operation start offsets. Older two-column VRAM CSVs and archives without CSVs remain supported, with timing JSON peaks used as a fallback. Operation durations from CSV alone never substitute for stage wall durations.
 - The pipeline diagram documents known dependencies. It is not an exported DAG or execution schedule.
 - Video playback is outside this first release.
 
@@ -102,7 +98,7 @@ See [DESIGN_PROPOSAL.md](DESIGN_PROPOSAL.md) for the agreed scope and proposed o
 
 ## Evaluation reports
 
-The **Evaluation** tab displays the generated plot summary, the imported reference synopsis and existing `score.json` reports generated by the OpenEnricher pipeline. The reference is shared when comparing the same video; conflicting imported reference texts remain visible in separate columns. Overview contains the whole-video metadata profile. It does not run evaluations or contact AI providers. Realtime evaluation is deferred and outside the current scope. See [docs/EVALUATION.md](docs/EVALUATION.md) for the supported workflow.
+The explorer displays existing `score.json` reports generated by the OpenEnricher pipeline. It does not run evaluations or contact AI providers. Realtime evaluation is deferred and outside the current scope. See [docs/EVALUATION.md](docs/EVALUATION.md) for the supported workflow.
 
 ## Link after GitHub Pages deployment
 
