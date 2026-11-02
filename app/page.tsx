@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { JsonCode } from "@/app/json-code";
-import { HardwarePerformance } from "@/app/hardware-performance";
+import { PerformanceView } from "@/app/performance-view";
+import { OverviewView, EvaluationView } from "@/app/metadata-views";
+import {
+  AlignedSection,
+  ColumnHeadings,
+  TextValue,
+  TagValues,
+  ViewEntry,
+} from "@/app/comparison-layout";
+import { PipelineView } from "@/app/pipeline-view";
 import {
   Activity,
   ArrowLeft,
@@ -30,11 +39,9 @@ import {
   clock,
   Details,
   Doc,
-  duration,
   evaluationState,
   findFrame,
   importFiles,
-  isCached,
   loadDetails,
   Run,
   seconds,
@@ -42,14 +49,14 @@ import {
   WindowData,
 } from "@/lib/data";
 
-type Tab = "Scenes" | "Overview" | "Performance" | "Pipeline";
-const tabs: Tab[] = ["Scenes", "Overview", "Performance", "Pipeline"];
-const stageNames: Record<string, string> = {
-  audio: "Audio & speakers",
-  dialogue: "Dialogue understanding",
-  vlm: "Visual understanding",
-  llm: "Metadata synthesis",
-};
+type Tab = "Scenes" | "Overview" | "Evaluation" | "Performance" | "Pipeline";
+const tabs: Tab[] = [
+  "Scenes",
+  "Overview",
+  "Evaluation",
+  "Performance",
+  "Pipeline",
+];
 function Empty({
   title,
   children,
@@ -88,26 +95,6 @@ function EvaluationBadge({ score }: { score: Doc | null }) {
     </Badge>
   );
 }
-function Tags({ values }: { values: unknown }) {
-  return (
-    <div className="tags">
-      {Array.isArray(values) && values.length ? (
-        values.map((v, i) => <span key={i}>{String(v)}</span>)
-      ) : (
-        <span className="muted">Not provided</span>
-      )}
-    </div>
-  );
-}
-function TextField({ label, value }: { label: string; value: unknown }) {
-  return (
-    <section className="text-field">
-      <h4>{label}</h4>
-      <p>{typeof value === "string" && value ? value : "Not provided"}</p>
-    </section>
-  );
-}
-
 export default function Home() {
   const [unlocked, setUnlocked] = useState(false),
     [password, setPassword] = useState(""),
@@ -135,6 +122,16 @@ export default function Home() {
   const other = available.find(
     (r) => r.id === otherId && r.video === run?.video && r.id !== run?.id,
   );
+
+  const viewEntries: ViewEntry[] =
+    run && details
+      ? [
+          { run, details },
+          ...(other && otherDetails
+            ? [{ run: other, details: otherDetails }]
+            : []),
+        ]
+      : [];
 
   useEffect(() => {
     try {
@@ -330,39 +327,6 @@ export default function Home() {
           onClick={() => setCatalog(true)}
         >
           <FolderOpen size={21} />
-        </button>
-        <button
-          title="Scene explorer"
-          disabled={!run}
-          className={!catalog && tab === "Scenes" ? "active" : ""}
-          onClick={() => {
-            setCatalog(false);
-            setTab("Scenes");
-          }}
-        >
-          <Film size={21} />
-        </button>
-        <button
-          title="Performance"
-          disabled={!run}
-          className={!catalog && tab === "Performance" ? "active" : ""}
-          onClick={() => {
-            setCatalog(false);
-            setTab("Performance");
-          }}
-        >
-          <Activity size={21} />
-        </button>
-        <button
-          title="Pipeline"
-          disabled={!run}
-          className={!catalog && tab === "Pipeline" ? "active" : ""}
-          onClick={() => {
-            setCatalog(false);
-            setTab("Pipeline");
-          }}
-        >
-          <GitBranch size={21} />
         </button>
         <div className="rail-bottom">
           <button
@@ -726,6 +690,8 @@ export default function Home() {
                   >
                     {t === "Scenes" ? (
                       <Film size={15} />
+                    ) : t === "Evaluation" ? (
+                      <Check size={15} />
                     ) : t === "Performance" ? (
                       <Activity size={15} />
                     ) : t === "Pipeline" ? (
@@ -813,11 +779,7 @@ export default function Home() {
                       </div>
                       <div className="index-note">
                         <Info size={14} />
-                        <p>
-                          Fixed analysis windows,
-                          <br />
-                          not detected scene cuts.
-                        </p>
+                        <p>Analysis windows recorded by the pipeline.</p>
                       </div>
                     </aside>
                     <main className="scene-main">
@@ -854,58 +816,41 @@ export default function Home() {
                               </button>
                             </div>
                           </div>
-                          <div className={other ? "comparison-scenes" : ""}>
-                            <div>
-                              {other && (
-                                <div className="column-label">
-                                  A <span>{run.label}</span>
-                                </div>
-                              )}
-                              <ScenePanel
-                                run={run}
-                                details={details}
-                                window={currentWindow}
-                                onSource={() => {
-                                  setSourceTarget(run.id);
-                                  setSourceOpen(true);
-                                }}
-                              />
-                            </div>
-                            {other && otherDetails && (
-                              <div>
-                                <div className="column-label">
-                                  B <span>{other.label}</span>
-                                </div>
-                                {compareWindow ? (
-                                  <>
-                                    <p className="alignment-note">
-                                      {clock(compareWindow.start)} –{" "}
-                                      {clock(compareWindow.end)}
-                                      {(compareWindow.start !==
-                                        currentWindow.start ||
-                                        compareWindow.end !==
-                                          currentWindow.end) &&
-                                        " · Overlapping window; boundaries differ"}
-                                    </p>
-                                    <ScenePanel
-                                      run={other}
-                                      details={otherDetails}
-                                      window={compareWindow}
-                                      onSource={() => {
-                                        setSourceTarget(other.id);
-                                        setSourceOpen(true);
-                                      }}
+                          <ScenePanel
+                            run={run}
+                            details={details}
+                            window={currentWindow}
+                            onSource={() => {
+                              setSourceTarget(run.id);
+                              setSourceOpen(true);
+                            }}
+                          >
+                            {(left) =>
+                              other && otherDetails && compareWindow ? (
+                                <ScenePanel
+                                  run={other}
+                                  details={otherDetails}
+                                  window={compareWindow}
+                                  onSource={() => {
+                                    setSourceTarget(other.id);
+                                    setSourceOpen(true);
+                                  }}
+                                >
+                                  {(right) => (
+                                    <SceneSectionsView
+                                      entries={viewEntries}
+                                      sections={[left, right]}
                                     />
-                                  </>
-                                ) : (
-                                  <Empty title="No overlapping window">
-                                    This run has no window in the selected
-                                    interval.
-                                  </Empty>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                                  )}
+                                </ScenePanel>
+                              ) : (
+                                <SceneSectionsView
+                                  entries={viewEntries}
+                                  sections={[left]}
+                                />
+                              )
+                            }
+                          </ScenePanel>
                         </>
                       ) : (
                         <Empty title="Scene timeline unavailable">
@@ -918,39 +863,29 @@ export default function Home() {
                   </div>
                 )}
                 {tab === "Overview" && (
-                  <main
-                    className={`content-page ${other ? "overview-compare" : ""}`}
-                  >
-                    <div>
-                      {other && (
-                        <div className="column-label">
-                          A <span>{run.label}</span>
-                        </div>
-                      )}
-                      <Overview run={run} details={details} />
-                    </div>
-                    {other && otherDetails && (
-                      <div>
-                        <div className="column-label">
-                          B <span>{other.label}</span>
-                        </div>
-                        <Overview
-                          run={other}
-                          details={otherDetails}
-                          baseline={run}
-                        />
-                      </div>
-                    )}
+                  <main className="content-page">
+                    <OverviewView entries={viewEntries} />
+                  </main>
+                )}
+                {tab === "Evaluation" && (
+                  <main className="content-page">
+                    <EvaluationView entries={viewEntries} />
                   </main>
                 )}
                 {tab === "Performance" && (
                   <main className="content-page">
-                    <Performance
-                      run={run}
-                      details={details}
-                      other={other}
-                      otherDetails={otherDetails}
-                      onWindow={(i) => {
+                    <PerformanceView
+                      key={`${run.id}:${other?.id || ""}`}
+                      entries={viewEntries}
+                      onWindow={(entry, number) => {
+                        const i = entry.details.windows.findIndex(
+                          (w) => w.windowNumber === number,
+                        );
+                        if (i < 0) return;
+                        if (entry.run.id !== run.id) {
+                          setSelected(entry.run.id);
+                          setOtherId(run.id);
+                        }
                         setIndex(i);
                         setTab("Scenes");
                       }}
@@ -959,15 +894,7 @@ export default function Home() {
                 )}
                 {tab === "Pipeline" && (
                   <main className="content-page">
-                    <Pipeline run={run} details={details} />
-                    {other && otherDetails && (
-                      <>
-                        <div className="section-heading">
-                          <h2>Comparison pipeline · {other.label}</h2>
-                        </div>
-                        <Pipeline run={other} details={otherDetails} />
-                      </>
-                    )}
+                    <PipelineView entries={viewEntries} />
                   </main>
                 )}
               </>
@@ -993,16 +920,64 @@ export default function Home() {
   );
 }
 
+type SceneSections = {
+  frames: React.ReactNode;
+  transcript: React.ReactNode;
+  fields: { title: string; content: React.ReactNode }[];
+  summary: React.ReactNode;
+  source: React.ReactNode;
+};
+function SceneSectionsView({
+  entries,
+  sections,
+}: {
+  entries: ViewEntry[];
+  sections: SceneSections[];
+}) {
+  const missing = (
+    <Empty title="No overlapping window">
+      This run has no window in the selected interval.
+    </Empty>
+  );
+  return (
+    <div className="scene-sections">
+      <ColumnHeadings entries={entries} />
+      <AlignedSection title="Visual evidence" entries={entries} card={false}>
+        {(_, i) => sections[i]?.frames || missing}
+      </AlignedSection>
+      <AlignedSection
+        title="Dialogue transcript"
+        entries={entries}
+        card={false}
+      >
+        {(_, i) => sections[i]?.transcript || missing}
+      </AlignedSection>
+      {sections[0].fields.map((field, index) => (
+        <AlignedSection title={field.title} key={field.title} entries={entries}>
+          {(_, i) => sections[i]?.fields[index]?.content || missing}
+        </AlignedSection>
+      ))}
+      <AlignedSection title="Dialogue summary" entries={entries}>
+        {(_, i) => sections[i]?.summary || missing}
+      </AlignedSection>
+      <AlignedSection title="Original artifacts" entries={entries}>
+        {(_, i) => sections[i]?.source || missing}
+      </AlignedSection>
+    </div>
+  );
+}
 function ScenePanel({
   run,
   details,
   window: w,
   onSource,
+  children,
 }: {
   run: Run;
   details: Details;
   window: WindowData;
   onSource: () => void;
+  children: (sections: SceneSections) => React.ReactNode;
 }) {
   const [sample, setSample] = useState(0),
     [time, setTime] = useState(w.start),
@@ -1070,241 +1045,234 @@ function ScenePanel({
       setSample(timedFrames[nearest].index);
     }
   }
-  return (
-    <div className="scene-panel">
-      <div className="evidence-column">
-        <section className="frame-card">
-          <div className="panel-heading">
-            <h3>
-              <ImageIcon size={15} /> Visual evidence
-            </h3>
-            <span>
-              {w.frames.length
-                ? `${w.frames.length} samples`
-                : "Frames unavailable"}
-            </span>
-          </div>
-          <button
-            className="hero-frame"
-            onClick={() => {
-              if (url && !imageError) setEnlarged(true);
-            }}
-            aria-label={url ? "Enlarge selected frame" : "Frame unavailable"}
-          >
-            <div className="frame-corner top-left" />
-            <div className="frame-corner bottom-right" />
-            {url && !imageError ? (
-              <img
-                src={url}
-                alt={`Sample ${sample + 1}, video time ${clock(Number(frame?.timestamp_seconds))}`}
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="placeholder-content">
-                <div className="placeholder-icon">
-                  <Film size={31} strokeWidth={1.25} />
-                </div>
-                <strong>
-                  {w.frameError ? "Frame capture failed" : "Frame unavailable"}
-                </strong>
-                <span>
-                  {frame
-                    ? "Image file missing from this import"
-                    : "No frame files were provided for this window"}
-                </span>
+  const sections: SceneSections = {
+    frames: (
+      <section className="frame-card">
+        <div className="panel-heading">
+          <span className="mono">
+            {clock(w.start)} – {clock(w.end)}
+          </span>
+          <span>
+            {w.frames.length
+              ? `${w.frames.length} samples`
+              : "Frames unavailable"}
+          </span>
+        </div>
+        <button
+          className="hero-frame"
+          onClick={() => {
+            if (url && !imageError) setEnlarged(true);
+          }}
+          aria-label={url ? "Enlarge selected frame" : "Frame unavailable"}
+        >
+          <div className="frame-corner top-left" />
+          <div className="frame-corner bottom-right" />
+          {url && !imageError ? (
+            <img
+              src={url}
+              alt={`Sample ${sample + 1}, video time ${clock(Number(frame?.timestamp_seconds))}`}
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="placeholder-content">
+              <div className="placeholder-icon">
+                <Film size={31} strokeWidth={1.25} />
               </div>
+              <strong>
+                {w.frameError ? "Frame capture failed" : "Frame unavailable"}
+              </strong>
+              <span>
+                {frame
+                  ? "Image file missing from this import"
+                  : "No frame files were provided for this window"}
+              </span>
+            </div>
+          )}
+          <span className="frame-label">
+            {frame
+              ? `SAMPLE ${String(sample + 1).padStart(2, "0")}`
+              : "NO FRAME"}
+          </span>
+          <span className="frame-time">
+            {frame && Number.isFinite(Number(frame.timestamp_seconds))
+              ? clock(Number(frame.timestamp_seconds))
+              : "—:—:—"}
+          </span>
+          {overlay &&
+            Number.isFinite(frame?.timestamp_seconds) &&
+            !!activeLines.length && (
+              <span className="subtitle">
+                {activeLines
+                  .map((l) => `${l.speaker || "UNKNOWN"}: ${l.text}`)
+                  .join("\n")}
+              </span>
             )}
-            <span className="frame-label">
-              {frame
-                ? `SAMPLE ${String(sample + 1).padStart(2, "0")}`
-                : "NO FRAME"}
-            </span>
-            <span className="frame-time">
-              {frame && Number.isFinite(Number(frame.timestamp_seconds))
-                ? clock(Number(frame.timestamp_seconds))
-                : "—:—:—"}
-            </span>
-            {overlay &&
-              Number.isFinite(frame?.timestamp_seconds) &&
-              !!activeLines.length && (
-                <span className="subtitle">
-                  {activeLines
-                    .map((l) => `${l.speaker || "UNKNOWN"}: ${l.text}`)
-                    .join("\n")}
-                </span>
-              )}
-          </button>
-          <div className="frame-filmstrip">
-            {w.frames.map((f: Doc, i) => (
+        </button>
+        <div className="frame-filmstrip">
+          {w.frames.map((f: Doc, i) => (
+            <button
+              key={i}
+              className={sample === i ? "active" : ""}
+              onClick={() => chooseFrame(i)}
+              aria-label={`Select frame ${i + 1}`}
+            >
+              <FrameThumb run={run} frame={w.frames[i]} />
+              <span>
+                {f.timestamp_seconds !== undefined
+                  ? clock(Number(f.timestamp_seconds))
+                  : String(i + 1).padStart(2, "0")}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="frame-bottom">
+          <span>
+            {Number.isFinite(frame?.timestamp_seconds) ? (
+              <>Sample time · {clock(Number(frame.timestamp_seconds))}</>
+            ) : (
+              "No sample timestamps available"
+            )}
+          </span>
+          <label>
+            <input
+              type="checkbox"
+              disabled={!Number.isFinite(frame?.timestamp_seconds)}
+              checked={overlay}
+              onChange={(e) => setOverlay(e.target.checked)}
+            />{" "}
+            Dialogue overlay
+          </label>
+        </div>
+        {w.frameError && <p className="inline-warning">{w.frameError}</p>}
+        {frame?.recovered && (
+          <p className="inline-warning">
+            Frames added after execution. Sample timestamps are unavailable;
+            dialogue synchronization is disabled.
+          </p>
+        )}
+        {frame?.file && <p className="frame-path mono">{frame.file}</p>}
+      </section>
+    ),
+    transcript: (
+      <section className="transcript-card">
+        <div className="panel-heading">
+          <span>{lines.length} transcript lines</span>
+          <Badge>Diarized speakers</Badge>
+        </div>
+        <div className="transcript-tools">
+          <label className="search">
+            <Search size={14} />
+            <input
+              placeholder="Search dialogue…"
+              aria-label="Search dialogue"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+          <select
+            aria-label="Filter speaker"
+            value={speaker}
+            onChange={(e) => setSpeaker(e.target.value)}
+          >
+            <option value="all">All speakers</option>
+            {[...new Set(lines.map((l) => l.speaker || "UNKNOWN"))].map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        {Number.isFinite(frame?.timestamp_seconds) && (
+          <p className="inspection-time">
+            Inspection time {clock(time)} · nearest sampled frame{" "}
+            {clock(Number(frame.timestamp_seconds))}
+          </p>
+        )}
+        <div className="transcript-lines">
+          {shown.length ? (
+            shown.map((line, i) => (
               <button
                 key={i}
-                className={sample === i ? "active" : ""}
-                onClick={() => chooseFrame(i)}
-                aria-label={`Select frame ${i + 1}`}
-              >
-                <FrameThumb run={run} frame={w.frames[i]} />
-                <span>
-                  {f.timestamp_seconds !== undefined
-                    ? clock(Number(f.timestamp_seconds))
-                    : String(i + 1).padStart(2, "0")}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="frame-bottom">
-            <span>
-              {Number.isFinite(frame?.timestamp_seconds) ? (
-                <>Sample time · {clock(Number(frame.timestamp_seconds))}</>
-              ) : (
-                "No sample timestamps available"
-              )}
-            </span>
-            <label>
-              <input
-                type="checkbox"
-                disabled={!Number.isFinite(frame?.timestamp_seconds)}
-                checked={overlay}
-                onChange={(e) => setOverlay(e.target.checked)}
-              />{" "}
-              Dialogue overlay
-            </label>
-          </div>
-          {w.frameError && <p className="inline-warning">{w.frameError}</p>}
-          {frame?.recovered && (
-            <p className="inline-warning">
-              Frames added after execution. Sample timestamps are unavailable;
-              dialogue synchronization is disabled.
-            </p>
-          )}
-          {frame?.file && <p className="frame-path mono">{frame.file}</p>}
-        </section>
-        <section className="transcript-card">
-          <div className="panel-heading">
-            <h3>
-              <Braces size={15} /> Dialogue transcript{" "}
-              <span className="mini-count">{lines.length}</span>
-            </h3>
-            <Badge>Diarized speakers</Badge>
-          </div>
-          <div className="transcript-tools">
-            <label className="search">
-              <Search size={14} />
-              <input
-                placeholder="Search dialogue…"
-                aria-label="Search dialogue"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-            <select
-              aria-label="Filter speaker"
-              value={speaker}
-              onChange={(e) => setSpeaker(e.target.value)}
-            >
-              <option value="all">All speakers</option>
-              {[...new Set(lines.map((l) => l.speaker || "UNKNOWN"))].map(
-                (s) => (
-                  <option key={s}>{s}</option>
-                ),
-              )}
-            </select>
-          </div>
-          {Number.isFinite(frame?.timestamp_seconds) && (
-            <p className="inspection-time">
-              Inspection time {clock(time)} · nearest sampled frame{" "}
-              {clock(Number(frame.timestamp_seconds))}
-            </p>
-          )}
-          <div className="transcript-lines">
-            {shown.length ? (
-              shown.map((line, i) => (
-                <button
-                  key={i}
-                  className={
-                    seconds(line.start_timestamp) <= time &&
-                    seconds(line.end_timestamp) > time
-                      ? "active"
-                      : ""
-                  }
-                  onClick={() => chooseTime(seconds(line.start_timestamp))}
-                >
-                  <span className="line-time">
-                    {clock(seconds(line.start_timestamp))}
-                  </span>
-                  <div>
-                    <span
-                      className={`speaker speaker-${String(line.speaker).slice(-1)}`}
-                    >
-                      {line.speaker || "UNKNOWN"}
-                    </span>
-                    <p>{line.text}</p>
-                  </div>
-                </button>
-              ))
-            ) : (
-              <Empty
-                title={
-                  lines.length
-                    ? "No matching dialogue"
-                    : "No transcript in this window"
+                className={
+                  seconds(line.start_timestamp) <= time &&
+                  seconds(line.end_timestamp) > time
+                    ? "active"
+                    : ""
                 }
+                onClick={() => chooseTime(seconds(line.start_timestamp))}
               >
-                Original speaker labels are retained; character identities are
-                not inferred.
-              </Empty>
-            )}
-          </div>
-          <div className="panel-footnote">
-            Speaker IDs are model labels, not verified character identities.
-          </div>
-        </section>
-      </div>
-      <aside className="metadata-column">
-        <section className="metadata-card">
-          <div className="panel-heading">
-            <h3>
-              <Layers3 size={15} /> Extracted metadata
-            </h3>
-            <Badge>VLM</Badge>
-          </div>
-          <TextField label="Scene description" value={w.visual.description} />
-          <section className="text-field">
-            <h4>Subjects & objects</h4>
-            <Tags values={w.visual.subjects_and_objects} />
-          </section>
-          <section className="text-field">
-            <h4>Actions</h4>
-            <Tags values={w.visual.actions} />
-          </section>
-          <TextField label="Camera & shot" value={w.visual.camera_and_shot} />
-          <TextField
-            label="Lighting & color"
-            value={w.visual.lighting_and_color}
-          />
-          <section className="text-field">
-            <h4>On-screen text</h4>
-            <Tags values={w.visual.on_screen_text} />
-          </section>
-          <button className="source-link" onClick={onSource}>
-            <Braces size={14} /> Inspect original artifacts{" "}
-            <ArrowRight size={13} />
-          </button>
-        </section>
-        <section className="summary-card">
-          <div className="panel-heading">
-            <h3>Dialogue summary</h3>
-            <Badge>LLM</Badge>
-          </div>
-          <p>
-            {w.dialogue.description ||
-              w.visual.dialogue_description ||
-              "No generated dialogue summary available."}
-          </p>
-          {w.dialogue.dialogue_sampled && (
-            <Badge tone="amber">Sampled dialogue input</Badge>
+                <span className="line-time">
+                  {clock(seconds(line.start_timestamp))}
+                </span>
+                <div>
+                  <span
+                    className={`speaker speaker-${String(line.speaker).slice(-1)}`}
+                  >
+                    {line.speaker || "UNKNOWN"}
+                  </span>
+                  <p>{line.text}</p>
+                </div>
+              </button>
+            ))
+          ) : (
+            <Empty
+              title={
+                lines.length
+                  ? "No matching dialogue"
+                  : "No transcript in this window"
+              }
+            >
+              Speaker labels follow the imported transcript.
+            </Empty>
           )}
-        </section>
-      </aside>
+        </div>
+        <div className="panel-footnote">
+          Speaker IDs follow the transcription model’s labels.
+        </div>
+      </section>
+    ),
+    fields: [
+      {
+        title: "Scene description",
+        content: <TextValue value={w.visual.description} />,
+      },
+      {
+        title: "Subjects & objects",
+        content: <TagValues value={w.visual.subjects_and_objects} />,
+      },
+      { title: "Actions", content: <TagValues value={w.visual.actions} /> },
+      {
+        title: "Camera & shot",
+        content: <TextValue value={w.visual.camera_and_shot} />,
+      },
+      {
+        title: "Lighting & color",
+        content: <TextValue value={w.visual.lighting_and_color} />,
+      },
+      {
+        title: "On-screen text",
+        content: <TagValues value={w.visual.on_screen_text} />,
+      },
+    ],
+    summary: (
+      <>
+        <TextValue
+          value={w.dialogue.description || w.visual.dialogue_description}
+          empty="No generated dialogue summary available."
+        />
+        {w.dialogue.dialogue_sampled && (
+          <Badge tone="amber">Sampled dialogue input</Badge>
+        )}
+      </>
+    ),
+    source: (
+      <button className="source-link" onClick={onSource}>
+        <Braces size={14} />
+        Inspect original artifacts <ArrowRight size={13} />
+      </button>
+    ),
+  };
+  return (
+    <>
+      {children(sections)}
       {enlarged && (
         <div
           className="image-modal"
@@ -1330,9 +1298,10 @@ function ScenePanel({
           </p>
         </div>
       )}
-    </div>
+    </>
   );
 }
+
 function FrameThumb({ run, frame }: { run: Run; frame?: Doc }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -1350,632 +1319,6 @@ function FrameThumb({ run, frame }: { run: Run; frame?: Doc }) {
   );
 }
 
-function Overview({
-  run,
-  details: d,
-  baseline,
-}: {
-  run: Run;
-  details: Details;
-  baseline?: Run;
-}) {
-  const p = d.profile,
-    state = evaluationState(run.score);
-  const delta =
-    baseline && evaluationState(baseline.score) === "valid" && state === "valid"
-      ? run.score!.overall - baseline.score!.overall
-      : null;
-  return (
-    <>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">WHOLE-VIDEO OUTPUT</p>
-          <h2>Beyond individual scenes</h2>
-        </div>
-        <EvaluationBadge score={run.score} />
-      </div>
-      <section className="overview-card">
-        <p className="eyebrow">NARRATIVE HOOK</p>
-        <h2 className="narrative">
-          {p.content_summary?.narrative_hook || "Narrative hook not provided"}
-        </h2>
-        <TextField
-          label="Visual style"
-          value={p.content_summary?.visual_style}
-        />
-        <div className="profile-grid">
-          {[
-            ["Primary genre", p.recsys_metadata?.primary_genre],
-            ["Pacing", p.recsys_metadata?.pacing],
-            ["Target audience", p.audience_profiling?.target_age_group],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <h4>{label}</h4>
-              <p>{value || "Not provided"}</p>
-            </div>
-          ))}
-        </div>
-        {[
-          ["Subgenres", p.recsys_metadata?.sub_genres],
-          ["Mood", p.recsys_metadata?.mood],
-          ["Semantic tags", p.search_and_discovery?.semantic_tags],
-          ["Topics", p.search_and_discovery?.main_topics],
-          ["Viewer interests", p.audience_profiling?.viewer_interests],
-        ].map(([label, values]) => (
-          <section className="text-field" key={String(label)}>
-            <h4>{label}</h4>
-            <Tags values={values} />
-          </section>
-        ))}
-      </section>
-      <div className="summary-grid">
-        <section className="overview-card">
-          <p className="eyebrow">GENERATED OUTPUT</p>
-          <h3>Plot summary</h3>
-          <p className="long-text">
-            {d.dialogue.plot_summary || "No generated plot summary available."}
-          </p>
-        </section>
-        <section className="overview-card">
-          <p className="eyebrow">REFERENCE MATERIAL</p>
-          <h3>Synopsis</h3>
-          <p className="long-text">
-            {d.synopsis ||
-              "No synopsis imported. Include synopsis/<video>_summary.txt with the archive."}
-          </p>
-        </section>
-      </div>
-      <section className="overview-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">EXTERNAL AGENT</p>
-            <h2>Metadata evaluation</h2>
-          </div>
-          {state === "valid" && (
-            <div className="big-score">
-              {run.score!.overall.toFixed(2)}
-              <span>/ 5</span>
-              {delta !== null && (
-                <small>
-                  Δ {delta >= 0 ? "+" : ""}
-                  {delta.toFixed(2)} vs A
-                </small>
-              )}
-            </div>
-          )}
-        </div>
-        {state === "missing" ? (
-          <Empty title="Not evaluated">
-            Import score.json to inspect quality dimensions and evaluator
-            rationale.
-          </Empty>
-        ) : state === "failed" ? (
-          <div className="evaluation-error">
-            <Badge tone="amber">Evaluation failed</Badge>
-            <p>
-              {run.score!.error ||
-                "The evaluator report is invalid or has parsing errors."}
-            </p>
-            <p>Fallback scores are excluded from quality comparisons.</p>
-          </div>
-        ) : (
-          <>
-            <div className="evaluation-method">
-              <Badge tone={run.score!.usable ? "green" : "amber"}>
-                {run.score!.usable ? "Usable" : "Below usability threshold"}
-              </Badge>
-              <span>
-                {run.score!.method?.provider || "Provider unknown"} /{" "}
-                {run.score!.method?.model || "Model unknown"}
-              </span>
-              <span>
-                Reference:{" "}
-                {run.score!.method?.uses_synopsis
-                  ? "synopsis"
-                  : "title / model knowledge"}
-              </span>
-            </div>
-            <p className="evaluation-summary">{run.score!.summary}</p>
-            {Object.entries(run.score!.dimensions || {}).map(
-              ([name, value]) => {
-                const v = value as Doc;
-                const base = baseline?.score?.dimensions?.[name]?.score;
-                const difference =
-                  Number.isFinite(base) &&
-                  evaluationState(baseline?.score || null) === "valid"
-                    ? Number(v.score) - Number(base)
-                    : null;
-                return (
-                  <div className="dimension" key={name}>
-                    <div>
-                      <strong>{name.replaceAll("_", " ")}</strong>
-                      <span>
-                        {v.score} / 5{" "}
-                        {difference !== null && (
-                          <small>
-                            Δ {difference >= 0 ? "+" : ""}
-                            {difference} ·{" "}
-                          </small>
-                        )}
-                        <small>· weight {Math.round(v.weight * 100)}%</small>
-                      </span>
-                    </div>
-                    <div className="dimension-track">
-                      <i
-                        style={{
-                          width: `${Math.max(0, Math.min(100, (Number(v.score) / 5) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                    <p>{v.note}</p>
-                  </div>
-                );
-              },
-            )}
-            <p className="panel-footnote">
-              Usable when overall ≥{" "}
-              {run.score!.thresholds?.usable_overall_min ?? "—"} and fidelity ≥{" "}
-              {run.score!.thresholds?.usable_fidelity_min ?? "—"}. Evaluator
-              judgments may be incorrect; inspect the evidence.
-            </p>
-          </>
-        )}
-      </section>
-    </>
-  );
-}
-function Performance({
-  run,
-  details: d,
-  other,
-  otherDetails,
-  onWindow,
-}: {
-  run: Run;
-  details: Details;
-  other?: Run;
-  otherDetails: Details | null;
-  onWindow: (i: number) => void;
-}) {
-  const [expanded, setExpanded] = useState<string[]>(["vlm"]);
-  const stages: Doc[] = Array.isArray(d.timings.stages) ? d.timings.stages : [];
-  const reference: Doc[] = otherDetails?.timings.stages || [];
-  const validDuration = (s: Doc) =>
-    Number.isFinite(s.wall_seconds) && s.wall_seconds >= 0;
-  const max = Math.max(
-    1,
-    ...stages.filter(validDuration).map((s) => s.wall_seconds),
-    ...reference.filter(validDuration).map((s) => s.wall_seconds),
-  );
-  const executed = stages
-    .filter((s) => !isCached(run, s.stage) && validDuration(s))
-    .reduce((sum, s) => sum + s.wall_seconds, 0);
-  const cached = stages
-    .filter((s) => isCached(run, s.stage) && validDuration(s))
-    .reduce((sum, s) => sum + s.wall_seconds, 0);
-  function category(name: string) {
-    if (/load/.test(name)) return "load";
-    if (/align/.test(name)) return "align";
-    if (/diariz/.test(name)) return "diarize";
-    return "generate";
-  }
-  return (
-    <>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">PROCESSING COST</p>
-          <h2>Where the time goes</h2>
-          <p className="muted">
-            Measured durations by stage and phase. Bars share an axis starting
-            at zero.
-          </p>
-        </div>
-        <Badge>Duration breakdown</Badge>
-      </div>
-      <div className="performance-stats">
-        <div>
-          <span>Executed stage wall durations</span>
-          <strong>
-            {stages.some(validDuration) ? duration(executed) : "—"}
-          </strong>
-          <small>Sum of recorded stages · excludes reused work</small>
-        </div>
-        <div>
-          <span>Original cached computation</span>
-          <strong>{stages.some(validDuration) ? duration(cached) : "—"}</strong>
-          <small>Artifact reference · not executed in this run</small>
-        </div>
-        <div>
-          <span>Recorded stages</span>
-          <strong>{stages.length.toString().padStart(2, "0")}</strong>
-          <small>Run elapsed and evaluation time not inferred</small>
-        </div>
-      </div>
-      <div className="trace-note">
-        <Info size={16} />
-        <p>
-          Current timing files record durations without start offsets. This view
-          does not imply exact execution order or concurrency. VLM window
-          processing may include preparation and frame capture.
-        </p>
-      </div>
-      <div className="legend">
-        <span>
-          <i className="load" />
-          Model load
-        </span>
-        <span>
-          <i className="generate" />
-          Generation / processing
-        </span>
-        <span>
-          <i className="align" />
-          Alignment
-        </span>
-        <span>
-          <i className="diarize" />
-          Diarization
-        </span>
-      </div>
-      {!stages.length ? (
-        <Empty title="No timing artifacts available" />
-      ) : (
-        <section className="trace-card">
-          <div className="trace-axis">
-            <span>STAGE / PHASE</span>
-            <div>
-              <span>0s</span>
-              <span>{duration(max / 2)}</span>
-              <span>{duration(max)}</span>
-            </div>
-            <span>DURATION</span>
-          </div>
-          {stages.map((stage, si) => {
-            const spans: Doc[] = Array.isArray(stage.spans) ? stage.spans : [];
-            const sum = spans.reduce((a, s) => a + (Number(s.seconds) || 0), 0);
-            const cachedStage = isCached(run, stage.stage);
-            const ref = reference.find((s) => s.stage === stage.stage);
-            const compatible =
-              ref &&
-              other &&
-              !isCached(other, stage.stage) &&
-              !cachedStage &&
-              validDuration(ref) &&
-              validDuration(stage);
-            return (
-              <div className="stage-trace" key={`${stage.stage}-${si}`}>
-                <button
-                  className="trace-row stage"
-                  onClick={() =>
-                    setExpanded((s) =>
-                      s.includes(stage.stage)
-                        ? s.filter((x) => x !== stage.stage)
-                        : [...s, stage.stage],
-                    )
-                  }
-                >
-                  <span>
-                    <ChevronDown
-                      size={14}
-                      className={
-                        expanded.includes(stage.stage) ? "" : "collapsed"
-                      }
-                    />
-                    <strong>{stageNames[stage.stage] || stage.stage}</strong>
-                  </span>
-                  <div className="bar-track">
-                    <i
-                      className={`bar stage-${stage.stage}`}
-                      style={{
-                        width: `${validDuration(stage) ? (stage.wall_seconds / max) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                  <strong>{duration(stage.wall_seconds)}</strong>
-                </button>
-                <div className="stage-caption">
-                  {cachedStage
-                    ? "Reused artifact — original timing"
-                    : "A · recorded wall duration"}
-                  {compatible && (
-                    <span>
-                      Δ {stage.wall_seconds - ref.wall_seconds >= 0 ? "+" : ""}
-                      {duration(stage.wall_seconds - ref.wall_seconds)} vs B
-                    </span>
-                  )}
-                </div>
-                {ref && (
-                  <div className="trace-row reference">
-                    <span>B · {other!.label}</span>
-                    <div className="bar-track">
-                      <i
-                        className="bar reference-bar"
-                        style={{
-                          width: `${validDuration(ref) ? (ref.wall_seconds / max) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                    <strong>{duration(ref.wall_seconds)}</strong>
-                    <small>
-                      {!compatible
-                        ? "Cache / timing semantics may differ"
-                        : "Compare instrumentation and hardware before interpreting differences"}
-                    </small>
-                  </div>
-                )}
-                {expanded.includes(stage.stage) && (
-                  <div className="phase-rows">
-                    {spans.map((span, i) => (
-                      <div className="trace-row phase" key={i}>
-                        <span title={span.name}>
-                          <i
-                            className={`phase-dot ${category(span.name || "")}`}
-                          />
-                          {span.name === "vlm_generate"
-                            ? "Window processing"
-                            : String(span.name || "Unnamed phase").replaceAll(
-                                "_",
-                                " ",
-                              )}
-                          {span.window && (
-                            <button
-                              className="window-jump"
-                              disabled={!d.windows.length}
-                              onClick={() =>
-                                onWindow(
-                                  Math.max(
-                                    0,
-                                    Math.min(
-                                      d.windows.length - 1,
-                                      Number(span.window) - 1,
-                                    ),
-                                  ),
-                                )
-                              }
-                            >
-                              #{span.window}
-                            </button>
-                          )}
-                        </span>
-                        <div className="bar-track">
-                          <i
-                            className={`bar ${category(span.name || "")}`}
-                            style={{
-                              width: `${(Math.max(0, Number(span.seconds) || 0) / max) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span title={span.model_id}>
-                          {duration(Number(span.seconds))}
-                        </span>
-                        {compatible &&
-                          (() => {
-                            const match = (ref.spans || []).find(
-                              (v: Doc) =>
-                                v.name === span.name &&
-                                v.window === span.window &&
-                                v.attempt === span.attempt,
-                            );
-                            return Number.isFinite(match?.seconds) ? (
-                              <small>
-                                B: {duration(match.seconds)} · Δ B − A:{" "}
-                                {duration(match.seconds - Number(span.seconds))}
-                              </small>
-                            ) : null;
-                          })()}
-                        {(span.model_id || span.attempt) && (
-                          <small>
-                            {span.model_id || ""}
-                            {span.attempt ? ` · attempt ${span.attempt}` : ""}
-                          </small>
-                        )}
-                      </div>
-                    ))}
-                    <div className="timing-coverage">
-                      Recorded phase sum: {duration(sum)} · stage wall:{" "}
-                      {duration(stage.wall_seconds)}.{" "}
-                      {!validDuration(stage)
-                        ? "Stage wall duration is unavailable in the CSV; phase sums are not a substitute."
-                        : sum > stage.wall_seconds
-                          ? "Phase totals exceed wall duration; possible nesting or inconsistent instrumentation."
-                          : "Gap positions and phase overlap are not recorded; no synthetic spans added."}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      )}
-      <HardwarePerformance
-        key={`${run.id}:${other?.id || ""}`}
-        run={run}
-        details={d}
-        other={other}
-        otherDetails={otherDetails}
-        onWindow={onWindow}
-      />
-    </>
-  );
-}
-function Pipeline({ run, details }: { run: Run; details: Details }) {
-  const [selected, setSelected] = useState("vlm");
-  const stages: Doc[] = run.result.stages?.length
-    ? run.result.stages
-    : (details.timings.stages || []).map((s: Doc) => ({
-        stage: s.stage,
-        status: "unknown",
-      }));
-  const known = ["audio", "dialogue", "vlm", "llm"];
-  const selectedStage = stages.find((s) => s.stage === selected);
-  const descriptions: Record<string, string> = {
-    audio:
-      "Transcription, alignment and speaker diarization produce timestamped dialogue.",
-    dialogue:
-      "A generated plot and per-window dialogue descriptions are derived from the transcript.",
-    vlm: run.config.visual_only
-      ? "Visual metadata is extracted from video windows and previous-window memory. Dialogue descriptions are not supplied to the VLM."
-      : "Visual metadata is extracted from video windows, dialogue descriptions and previous-window metadata.",
-    llm: "The generated plot and accumulated scene metadata are synthesized into a whole-video profile.",
-    evaluation:
-      "An external provider scores the final profile. Evaluation is a model judgment, not a ground-truth annotation.",
-  };
-  return (
-    <>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">EXTRACTION STRUCTURE</p>
-          <h2>From video to metadata</h2>
-          <p className="muted">
-            Derived from the known pipeline implementation and archived
-            configuration.
-          </p>
-        </div>
-        <Badge>Configuration diagram</Badge>
-      </div>
-      <div className="pipeline-flags">
-        <span>
-          Window <strong>{run.config.interval_seconds || "—"} seconds</strong>
-        </span>
-        <span>
-          VLM memory{" "}
-          <strong>
-            {run.config.vlm_memory_scenes == null
-              ? "All previous windows"
-              : `${run.config.vlm_memory_scenes} windows`}
-          </strong>
-        </span>
-        <span>
-          VLM dialogue input{" "}
-          <strong>{run.config.visual_only ? "Disabled" : "Enabled"}</strong>
-        </span>
-      </div>
-      <section className="pipeline-canvas" aria-label="Pipeline data flow">
-        <div className="pipeline-diagram">
-          <svg
-            className="pipeline-edges"
-            viewBox="0 0 1080 340"
-            aria-hidden="true"
-          >
-            <defs>
-              <marker
-                id={`arrow-${run.id.replace(/[^a-z0-9]/gi, "")}`}
-                markerWidth="7"
-                markerHeight="7"
-                refX="6"
-                refY="3.5"
-                orient="auto"
-              >
-                <path d="M0 0 L7 3.5 L0 7 Z" fill="currentColor" />
-              </marker>
-            </defs>
-            <g
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              markerEnd={`url(#arrow-${run.id.replace(/[^a-z0-9]/gi, "")})`}
-            >
-              <path d="M140 198 H185" />
-              <path d="M325 198 H370" />
-              <path
-                d="M510 198 H555"
-                className={run.config.visual_only ? "edge-muted" : ""}
-              />
-              <path d="M695 198 H740" />
-              <path d="M880 198 H925" />
-              <path d="M80 148 V45 H625 V148" className="edge-video" />
-              <path d="M440 248 V290 H810 V248" className="edge-plot" />
-              <path d="M695 169 H716 V103 H650 V148" className="edge-memory" />
-            </g>
-            <g className="edge-labels" textAnchor="middle">
-              <text x="350" y="135">
-                Transcript
-              </text>
-              <text x="533" y="135">
-                {run.config.visual_only ? "Windows" : "Scene context"}
-              </text>
-              <text x="718" y="266">
-                Visual metadata
-              </text>
-              <text x="905" y="135">
-                Profile
-              </text>
-              <text x="350" y="33" className="label-video">
-                Video windows
-              </text>
-              <text x="625" y="312" className="label-plot">
-                Whole-video plot summary
-              </text>
-              <text x="686" y="88" className="label-memory">
-                Previous-window memory
-              </text>
-            </g>
-          </svg>
-          <div className="diagram-video">
-            <Film size={22} />
-            <strong>Video</strong>
-            <span title={run.video}>{run.video}</span>
-          </div>
-          {[...known, "evaluation"].map((name, i) => (
-            <button
-              key={name}
-              style={{ left: 185 + i * 185 }}
-              className={`pipeline-node diagram-node ${selected === name ? "active" : ""}`}
-              aria-pressed={selected === name}
-              onClick={() => setSelected(name)}
-            >
-              <span className="node-index">0{i + 1}</span>
-              {name === "audio" ? (
-                <Activity size={20} />
-              ) : name === "evaluation" ? (
-                <Check size={20} />
-              ) : (
-                <Layers3 size={20} />
-              )}
-              <strong>{stageNames[name] || "Evaluation"}</strong>
-              <span>
-                {name === "evaluation"
-                  ? evaluationState(run.score)
-                  : stages.find((s) => s.stage === name)?.status ||
-                    "Not recorded"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className="overview-card node-detail">
-        <div>
-          <p className="eyebrow">SELECTED STAGE</p>
-          <h2>{stageNames[selected] || "Evaluation"}</h2>
-          <p>{descriptions[selected]}</p>
-        </div>
-        <div>
-          <Badge tone={selectedStage?.status === "success" ? "green" : ""}>
-            {selected === "evaluation"
-              ? evaluationState(run.score)
-              : selectedStage?.status || "Not recorded"}
-          </Badge>
-          <p className="mono">{selected}</p>
-        </div>
-      </section>
-      {stages
-        .filter((s) => !known.includes(s.stage))
-        .map((s) => (
-          <div className="trace-note" key={s.stage}>
-            <Info size={16} />
-            <p>
-              Additional stage: <strong>{s.stage}</strong> · {s.status}.
-              Dependencies were not exported and are not assumed.
-            </p>
-          </div>
-        ))}
-      <details className="config-source">
-        <summary>Configuration snapshot · variant.json</summary>
-        <JsonCode text={JSON.stringify(run.config, null, 2)} />
-      </details>
-    </>
-  );
-}
 function SourceDrawer({
   run,
   sources,
