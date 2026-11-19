@@ -178,16 +178,8 @@ export function PipelineView({ entries }: { entries: ViewEntry[] }) {
           </dl>
         )}
       </AlignedSection>
-      <AlignedSection title="Pipeline data flow" entries={entries} card={false}>
-        {(entry) => (
-          <Diagram
-            entry={entry}
-            selected={selected}
-            setSelected={setSelected}
-          />
-        )}
-      </AlignedSection>
       <AlignedSection
+        className="selected-stage"
         title={stageNames[selected]}
         eyebrow="SELECTED STAGE"
         entries={entries}
@@ -203,6 +195,15 @@ export function PipelineView({ entries }: { entries: ViewEntry[] }) {
                   )?.status || "Not recorded"}
             </span>
           </>
+        )}
+      </AlignedSection>
+      <AlignedSection title="Pipeline data flow" entries={entries} card={false}>
+        {(entry) => (
+          <Diagram
+            entry={entry}
+            selected={selected}
+            setSelected={setSelected}
+          />
         )}
       </AlignedSection>
       {[

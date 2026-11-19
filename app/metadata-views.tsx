@@ -1,7 +1,7 @@
 import {
   AlignedSection,
   ColumnHeadings,
-  TagValues,
+  MetadataField,
   TextValue,
   ViewEntry,
 } from "./comparison-layout";
@@ -56,19 +56,22 @@ export function OverviewView({ entries }: { entries: ViewEntry[] }) {
       </div>
       <ColumnHeadings entries={entries} />
       {fields.map(([title, get]) => (
-        <AlignedSection
+        <MetadataField
           key={title}
           title={title}
           entries={entries}
+          values={entries.map(get)}
           className={title === "Narrative hook" ? "narrative-section" : ""}
-        >
-          {(entry) => <TextValue value={get(entry)} />}
-        </AlignedSection>
+        />
       ))}
       {tags.map(([title, get]) => (
-        <AlignedSection key={title} title={title} entries={entries}>
-          {(entry) => <TagValues value={get(entry)} />}
-        </AlignedSection>
+        <MetadataField
+          key={title}
+          title={title}
+          entries={entries}
+          values={entries.map(get)}
+          tags
+        />
       ))}
     </>
   );
