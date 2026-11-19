@@ -287,11 +287,11 @@
   min-height: 0;
 }
 .scene-sections .frame-filmstrip {
-  --thumb-height: 48px;
+  --thumb-height: 96px;
   --thumb-gap: 5px;
   --thumb-inset: 3px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 68px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr));
   grid-auto-rows: var(--thumb-height);
   gap: var(--thumb-gap);
   padding: var(--thumb-inset) 12px;
