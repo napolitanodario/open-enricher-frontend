@@ -963,8 +963,11 @@ function SceneSectionsView({
       {field("Actions", "actions", true)}
     </>
   );
-  const visualDetails = (
+  const sceneDetails = (
     <>
+      <AlignedSection title="Dialogue summary" entries={entries}>
+        {(_, i) => sections[i]?.summary || missing}
+      </AlignedSection>
       {field("Camera & shot", "camera_and_shot")}
       {field("Lighting & color", "lighting_and_color")}
       {field("On-screen text", "on_screen_text", true)}
@@ -985,22 +988,16 @@ function SceneSectionsView({
       {(_, i) => sections[i]?.transcript || missing}
     </AlignedSection>
   );
-  const summary = (
-    <AlignedSection title="Dialogue summary" entries={entries}>
-      {(_, i) => sections[i]?.summary || missing}
-    </AlignedSection>
-  );
   if (entries.length === 1) {
     return (
       <div className="scene-sections single-scene">
         {evidence}
         {transcript}
-        <div className="scene-profile">{profile}</div>
         <div className="scene-profile">
-          {visualDetails}
-          {summary}
+          {profile}
+          <div className="scene-artifacts">{sections[0].source}</div>
         </div>
-        {sections[0].source}
+        <div className="scene-profile">{sceneDetails}</div>
       </div>
     );
   }
@@ -1010,8 +1007,7 @@ function SceneSectionsView({
       {evidence}
       {transcript}
       {profile}
-      {visualDetails}
-      {summary}
+      {sceneDetails}
       <AlignedSection title="Original artifacts" entries={entries}>
         {(_, i) => sections[i]?.source || missing}
       </AlignedSection>
