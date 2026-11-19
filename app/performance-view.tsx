@@ -210,7 +210,7 @@ export function PerformanceView({
   const hasResources = timelines.some((t) => t.samples.length);
   const hasDevice = entries.some((e) => e.details.hardware.device);
   return (
-    <div className="performance-view">
+    <div className={`performance-view${hasDevice ? " has-device" : ""}`}>
       <div className="section-heading">
         <div>
           <p className="eyebrow">EXECUTION & RESOURCES</p>
@@ -470,6 +470,7 @@ export function PerformanceView({
           return (
             <AlignedSection
               key={metric.key}
+              className="resource-section"
               title={metric.label}
               entries={entries}
               card={false}

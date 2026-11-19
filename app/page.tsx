@@ -8,12 +8,17 @@ import {
   AlignedSection,
   ColumnHeadings,
   TextValue,
-  TagValues,
+  MetadataField,
   ViewEntry,
 } from "@/app/comparison-layout";
 import { PipelineView } from "@/app/pipeline-view";
 import {
-  Activity,
+  sections,
+  Tab,
+  ThemeToggle,
+  WorkspaceNavigation,
+} from "./workspace-navigation";
+import {
   ArrowLeft,
   ArrowRight,
   Braces,
@@ -25,7 +30,6 @@ import {
   Columns2,
   Film,
   FolderOpen,
-  GitBranch,
   Image as ImageIcon,
   Info,
   Layers3,
@@ -49,22 +53,11 @@ import {
   WindowData,
 } from "@/lib/data";
 
-type Tab = "Scenes" | "Overview" | "Evaluation" | "Performance" | "Pipeline";
-const tabs: Tab[] = [
-  "Scenes",
-  "Overview",
-  "Evaluation",
-  "Performance",
-  "Pipeline",
-];
 function DevelopmentNotice() {
   if (process.env.NEXT_PUBLIC_DEPLOYMENT_CHANNEL !== "development") return null;
   return (
     <aside className="dev-preview-banner" aria-label="Development preview">
-      <div>
-        <strong>Development preview</strong>
-        <span>Evaluation & performance redesign</span>
-      </div>
+      <strong>Development preview</strong>
       <a
         href={process.env.NEXT_PUBLIC_PRODUCTION_BASE_PATH || "/"}
         target="_blank"
@@ -74,6 +67,21 @@ function DevelopmentNotice() {
       </a>
     </aside>
   );
+}
+// Follow keyboard or synchronized selections within their own scroll strip.
+function revealSelection(button: HTMLButtonElement | null) {
+  const list = button?.parentElement;
+  if (!list || !button) return;
+  const item = button.getBoundingClientRect();
+  const bounds = list.getBoundingClientRect();
+  list.scrollBy({
+    left:
+      Math.min(0, item.left - bounds.left) +
+      Math.max(0, item.right - bounds.right),
+    top:
+      Math.min(0, item.top - bounds.top) +
+      Math.max(0, item.bottom - bounds.bottom),
+  });
 }
 function Empty({
   title,
@@ -156,7 +164,8 @@ export default function Home() {
       setUnlocked(sessionStorage.getItem("oe-unlocked") === "yes");
     } catch {}
     const q = new URLSearchParams(location.search);
-    if (tabs.includes(q.get("tab") as Tab)) setTab(q.get("tab") as Tab);
+    const tab = q.get("tab");
+    if (tab && Object.hasOwn(sections, tab)) setTab(tab as Tab);
     if (Number(q.get("window")) > 0) setIndex(Number(q.get("window")) - 1);
   }, []);
   useEffect(() => {
@@ -271,6 +280,7 @@ export default function Home() {
     setOtherId("");
     setIndex(0);
     setCatalog(false);
+    window.scrollTo(0, 0);
   };
 
   if (!unlocked)
@@ -279,6 +289,9 @@ export default function Home() {
         <div className="lock-brand">
           Open<span>Enricher</span>
           <span className="product-tag">EXPLORER</span>
+        </div>
+        <div className="lock-appearance">
+          <ThemeToggle />
         </div>
         <form
           className="lock-card"
@@ -339,29 +352,27 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      <aside className="rail">
-        <button
-          title="Experiment catalog"
-          className={catalog || !run ? "active" : ""}
-          onClick={() => setCatalog(true)}
-        >
-          <FolderOpen size={21} />
-        </button>
-        <div className="rail-bottom">
-          <button
-            title="Lock workspace"
-            onClick={() => {
-              setUnlocked(false);
-              try {
-                sessionStorage.removeItem("oe-unlocked");
-              } catch {}
-            }}
-          >
-            <LockKeyhole size={19} />
-          </button>
-        </div>
-      </aside>
-      <div className="workspace">
+      <WorkspaceNavigation
+        active={catalog || !run ? "Experiments" : tab}
+        hasRun={!!run}
+        sceneCount={details?.windows.length}
+        onCatalog={() => {
+          setCatalog(true);
+          window.scrollTo(0, 0);
+        }}
+        onSelect={(next) => {
+          setCatalog(false);
+          setTab(next);
+          window.scrollTo(0, 0);
+        }}
+        onLock={() => {
+          setUnlocked(false);
+          try {
+            sessionStorage.removeItem("oe-unlocked");
+          } catch {}
+        }}
+      />
+      <div className={`workspace ${other ? "compare-runs" : "single-run"}`}>
         <header className="topbar">
           <button className="wordmark" onClick={() => setCatalog(true)}>
             Open<span>Enricher</span>
@@ -701,31 +712,6 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              <nav className="tabs">
-                {tabs.map((t) => (
-                  <button
-                    key={t}
-                    className={tab === t ? "active" : ""}
-                    onClick={() => setTab(t)}
-                  >
-                    {t === "Scenes" ? (
-                      <Film size={15} />
-                    ) : t === "Evaluation" ? (
-                      <Check size={15} />
-                    ) : t === "Performance" ? (
-                      <Activity size={15} />
-                    ) : t === "Pipeline" ? (
-                      <GitBranch size={15} />
-                    ) : (
-                      <Layers3 size={15} />
-                    )}
-                    {t}
-                    {t === "Scenes" && (
-                      <span>{details?.windows.length ?? "—"}</span>
-                    )}
-                  </button>
-                ))}
-              </nav>
             </section>
             {other && (
               <div className="comparison-banner">
@@ -774,7 +760,7 @@ export default function Home() {
                 )}
                 {tab === "Scenes" && (
                   <div className="scene-layout">
-                    <aside className="window-index">
+                    <aside className="window-index" aria-label="Scene windows">
                       <div className="index-title">
                         <span>SCENE WINDOWS</span>
                         <span>{details.windows.length}</span>
@@ -785,6 +771,9 @@ export default function Home() {
                             key={i}
                             onClick={() => setIndex(i)}
                             className={index === i ? "active" : ""}
+                            ref={index === i ? revealSelection : undefined}
+                            aria-current={index === i ? "step" : undefined}
+                            aria-label={`Scene ${i + 1}, ${clock(w.start)} to ${clock(w.end)}`}
                           >
                             <span className="window-number">
                               {String(i + 1).padStart(2, "0")}
@@ -796,10 +785,6 @@ export default function Home() {
                             <span className="window-dot" />
                           </button>
                         ))}
-                      </div>
-                      <div className="index-note">
-                        <Info size={14} />
-                        <p>Analysis windows recorded by the pipeline.</p>
                       </div>
                     </aside>
                     <main className="scene-main">
@@ -883,12 +868,12 @@ export default function Home() {
                   </div>
                 )}
                 {tab === "Overview" && (
-                  <main className="content-page">
+                  <main className="content-page overview-view">
                     <OverviewView entries={viewEntries} />
                   </main>
                 )}
                 {tab === "Evaluation" && (
-                  <main className="content-page">
+                  <main className="content-page evaluation-view">
                     <EvaluationView entries={viewEntries} />
                   </main>
                 )}
@@ -908,12 +893,13 @@ export default function Home() {
                         }
                         setIndex(i);
                         setTab("Scenes");
+                        window.scrollTo(0, 0);
                       }}
                     />
                   </main>
                 )}
                 {tab === "Pipeline" && (
-                  <main className="content-page">
+                  <main className="content-page pipeline-view">
                     <PipelineView entries={viewEntries} />
                   </main>
                 )}
@@ -943,7 +929,7 @@ export default function Home() {
 type SceneSections = {
   frames: React.ReactNode;
   transcript: React.ReactNode;
-  fields: { title: string; content: React.ReactNode }[];
+  visual: WindowData["visual"];
   summary: React.ReactNode;
   source: React.ReactNode;
 };
@@ -959,27 +945,69 @@ function SceneSectionsView({
       This run has no window in the selected interval.
     </Empty>
   );
-  return (
-    <div className="scene-sections">
-      <ColumnHeadings entries={entries} />
-      <AlignedSection title="Visual evidence" entries={entries} card={false}>
-        {(_, i) => sections[i]?.frames || missing}
-      </AlignedSection>
-      <AlignedSection
-        title="Dialogue transcript"
+  function field(title: string, key: string, tags = false) {
+    return (
+      <MetadataField
+        title={title}
+        tags={tags}
         entries={entries}
-        card={false}
-      >
-        {(_, i) => sections[i]?.transcript || missing}
-      </AlignedSection>
-      {sections[0].fields.map((field, index) => (
-        <AlignedSection title={field.title} key={field.title} entries={entries}>
-          {(_, i) => sections[i]?.fields[index]?.content || missing}
-        </AlignedSection>
-      ))}
+        values={sections.map((s) => s.visual[key])}
+        missing={missing}
+      />
+    );
+  }
+  const profile = (
+    <>
+      {field("Scene description", "description")}
+      {field("Subjects & objects", "subjects_and_objects", true)}
+      {field("Actions", "actions", true)}
+    </>
+  );
+  const sceneDetails = (
+    <>
       <AlignedSection title="Dialogue summary" entries={entries}>
         {(_, i) => sections[i]?.summary || missing}
       </AlignedSection>
+      {field("Camera & shot", "camera_and_shot")}
+      {field("Lighting & color", "lighting_and_color")}
+      {field("On-screen text", "on_screen_text", true)}
+    </>
+  );
+  const evidence = (
+    <AlignedSection title="Visual evidence" entries={entries} card={false}>
+      {(_, i) => sections[i]?.frames || missing}
+    </AlignedSection>
+  );
+  const transcript = (
+    <AlignedSection
+      title="Dialogue transcript"
+      entries={entries}
+      card={false}
+      className="scene-dialogue"
+    >
+      {(_, i) => sections[i]?.transcript || missing}
+    </AlignedSection>
+  );
+  if (entries.length === 1) {
+    return (
+      <div className="scene-sections single-scene">
+        {evidence}
+        {transcript}
+        <div className="scene-profile">
+          {profile}
+          <div className="scene-artifacts">{sections[0].source}</div>
+        </div>
+        <div className="scene-profile">{sceneDetails}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="scene-sections">
+      <ColumnHeadings entries={entries} />
+      {evidence}
+      {transcript}
+      {profile}
+      {sceneDetails}
       <AlignedSection title="Original artifacts" entries={entries}>
         {(_, i) => sections[i]?.source || missing}
       </AlignedSection>
@@ -1021,7 +1049,7 @@ function ScenePanel({
     setTime(w.start);
     setQuery("");
     setSpeaker("all");
-  }, [w.start, run.id]);
+  }, [w, run.id]);
   useEffect(() => {
     setImageError(false);
     const source = frame?.file ? findFrame(run, frame.file) : undefined;
@@ -1128,23 +1156,32 @@ function ScenePanel({
               </span>
             )}
         </button>
-        <div className="frame-filmstrip">
-          {w.frames.map((f: Doc, i) => (
-            <button
-              key={i}
-              className={sample === i ? "active" : ""}
-              onClick={() => chooseFrame(i)}
-              aria-label={`Select frame ${i + 1}`}
-            >
-              <FrameThumb run={run} frame={w.frames[i]} />
-              <span>
-                {f.timestamp_seconds !== undefined
-                  ? clock(Number(f.timestamp_seconds))
-                  : String(i + 1).padStart(2, "0")}
-              </span>
-            </button>
-          ))}
-        </div>
+        {w.frames.length > 0 && (
+          <div
+            key={w.windowNumber}
+            className="frame-filmstrip"
+            role="group"
+            aria-label="Scene frames"
+          >
+            {w.frames.map((f: Doc, i) => (
+              <button
+                key={i}
+                className={sample === i ? "active" : ""}
+                ref={sample === i ? revealSelection : undefined}
+                aria-pressed={sample === i}
+                onClick={() => chooseFrame(i)}
+                aria-label={`Select frame ${i + 1}`}
+              >
+                <FrameThumb run={run} frame={f} />
+                <span>
+                  {f.timestamp_seconds !== undefined
+                    ? clock(Number(f.timestamp_seconds))
+                    : String(i + 1).padStart(2, "0")}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="frame-bottom">
           <span>
             {Number.isFinite(frame?.timestamp_seconds) ? (
@@ -1249,29 +1286,7 @@ function ScenePanel({
         </div>
       </section>
     ),
-    fields: [
-      {
-        title: "Scene description",
-        content: <TextValue value={w.visual.description} />,
-      },
-      {
-        title: "Subjects & objects",
-        content: <TagValues value={w.visual.subjects_and_objects} />,
-      },
-      { title: "Actions", content: <TagValues value={w.visual.actions} /> },
-      {
-        title: "Camera & shot",
-        content: <TextValue value={w.visual.camera_and_shot} />,
-      },
-      {
-        title: "Lighting & color",
-        content: <TextValue value={w.visual.lighting_and_color} />,
-      },
-      {
-        title: "On-screen text",
-        content: <TagValues value={w.visual.on_screen_text} />,
-      },
-    ],
+    visual: w.visual,
     summary: (
       <>
         <TextValue

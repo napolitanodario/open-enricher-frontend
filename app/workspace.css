@@ -1,0 +1,846 @@
+/* The content responds to the space available beside the navigation rail. */
+.app-shell {
+  --rail-collapsed: 64px;
+  --rail-expanded: 200px;
+}
+.workspace {
+  container: workspace / inline-size;
+}
+.rail {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: var(--rail-collapsed);
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 8px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+.rail[data-expanded="true"] {
+  width: var(--rail-expanded);
+}
+.rail nav,
+.rail-sections,
+.rail-bottom {
+  display: grid;
+  gap: 4px;
+}
+.rail-sections,
+.rail-bottom {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 12px;
+}
+.rail-bottom {
+  margin-top: auto;
+}
+.rail button,
+.lock-appearance button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 7px;
+  color: var(--muted);
+  line-height: 1.3;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rail button:hover:enabled,
+.lock-appearance button:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+.rail button[aria-current="page"],
+.rail button[aria-current="page"]:hover {
+  color: var(--blue);
+  background: var(--soft-blue);
+  box-shadow: inset 3px 0 var(--blue);
+}
+.rail .rail-toggle {
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  min-height: 46px;
+  margin-bottom: 2px;
+}
+.rail-label {
+  white-space: nowrap;
+}
+.rail-backdrop {
+  display: none;
+}
+.rail-label,
+.rail-count {
+  display: none;
+}
+.rail[data-expanded="true"] button {
+  justify-content: flex-start;
+  padding-inline: 13px;
+}
+.rail[data-expanded="true"] :is(.rail-label, .rail-count) {
+  display: inline;
+}
+.rail-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.lock-appearance {
+  position: absolute;
+  right: clamp(16px, 3vw, 40px);
+  top: 18px;
+}
+.lock-appearance button {
+  min-width: 42px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.run-header {
+  border-bottom: 1px solid var(--line);
+}
+.breadcrumb,
+.title-line,
+.run-meta,
+.heading-row > div {
+  min-width: 0;
+}
+.breadcrumb > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.title-line h1,
+.run-meta {
+  overflow-wrap: anywhere;
+}
+.run-meta {
+  flex-wrap: wrap;
+}
+.run-controls select {
+  min-width: 0;
+}
+.run-controls > label {
+  min-width: 0;
+}
+.search:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.workspace {
+  --gutter: clamp(16px, 2.4vw, 38px);
+  --space: clamp(14px, 1.5vw, 22px);
+  --card-pad: clamp(16px, 1.7vw, 24px);
+}
+.content-page,
+.catalog {
+  padding-inline: var(--gutter);
+}
+.content-page {
+  padding-top: 28px;
+}
+.topbar,
+.run-header,
+.dev-preview-banner,
+.warnings,
+.comparison-banner,
+.comparison-summary,
+.banner {
+  padding-inline: var(--gutter, 24px);
+}
+.dev-preview-banner {
+  padding-block: 8px;
+}
+.lock-card > .dev-preview-banner {
+  padding: 10px 12px;
+}
+.scene-layout {
+  display: grid;
+  grid-template-columns: clamp(178px, 14%, 200px) minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: var(--space);
+  padding: 24px var(--gutter) 48px;
+  width: 100%;
+  max-width: 1660px;
+  margin-inline: auto;
+  border-top: 0;
+}
+.window-index {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.index-title {
+  display: flex;
+  padding-inline: 9px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+.window-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 1px;
+  gap: 4px;
+}
+.window-list > button {
+  gap: 12px;
+  padding: 8px 12px;
+  min-height: 55px;
+  font-variant-numeric: tabular-nums;
+}
+.window-list > button:hover {
+  background: var(--surface-soft);
+}
+.window-list > button.active {
+  background: var(--soft-blue);
+}
+.window-list > button.active::before {
+  display: none;
+}
+.window-list strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.window-list small {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.window-number {
+  font-size: 13px;
+}
+.scene-main {
+  padding: 0;
+}
+.scene-toolbar {
+  min-height: 40px;
+  margin-bottom: 14px;
+}
+.scene-toolbar h2 {
+  font-size: 22px;
+}
+.scene-arrows button {
+  width: 32px;
+  height: 32px;
+}
+.time-pill {
+  font-size: 13px;
+}
+.single-scene {
+  display: grid;
+  gap: var(--space);
+  align-content: start;
+  min-width: 0;
+}
+.scene-profile,
+.single-run .content-page .metadata-field {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--card-pad);
+}
+.scene-profile > .aligned-section + .aligned-section,
+.scene-artifacts {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.scene-profile .metadata-field:not(:first-child) h3 {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.single-scene .aligned-section,
+.single-run .content-page .metadata-field {
+  margin: 0;
+}
+.single-run .metadata-field .section-cards > .aligned-cell {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.single-run .metadata-field .shared-section-heading {
+  margin-bottom: 8px;
+}
+.shared-section-heading h3 {
+  line-height: 1.45;
+}
+.scene-sections .hero-frame {
+  width: calc(100% - 24px);
+  margin: 12px;
+  min-height: 0;
+}
+.scene-sections .frame-filmstrip {
+  --thumb-height: 96px;
+  --thumb-gap: 5px;
+  --thumb-inset: 3px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr));
+  grid-auto-rows: var(--thumb-height);
+  gap: var(--thumb-gap);
+  padding: var(--thumb-inset) 12px;
+  max-height: calc(
+    3 * var(--thumb-height) + 2 * var(--thumb-gap) + 2 * var(--thumb-inset)
+  );
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  scroll-snap-type: y proximity;
+  scroll-padding-block: var(--thumb-inset);
+}
+.frame-filmstrip > button {
+  height: 100%;
+  scroll-snap-align: start;
+}
+.frame-filmstrip span {
+  font-size: 10px;
+}
+.scene-sections .frame-bottom {
+  flex-direction: row;
+  align-items: center;
+}
+.scene-sections .panel-heading {
+  min-height: 42px;
+  padding: 10px 14px;
+}
+.scene-sections .transcript-lines {
+  height: auto;
+  max-height: 340px;
+}
+.scene-sections .source-link {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  margin-inline-start: auto;
+  border: 0;
+  padding: 0;
+  color: var(--blue);
+}
+.scene-sections .line-time {
+  font-size: 12px;
+}
+.scene-sections .speaker {
+  font-size: 10px;
+}
+.scene-sections .transcript-tools select {
+  width: 122px;
+  max-width: 100%;
+}
+.scene-sections .search {
+  min-width: 0;
+}
+.single-scene .transcript-tools {
+  flex-direction: row;
+}
+.single-scene .transcript-tools .search {
+  flex: 2 1 140px;
+}
+.single-scene .transcript-tools select {
+  flex: 1 1 102px;
+  min-height: 36px;
+}
+.single-run .scene-sections .long-text {
+  line-height: 1.7;
+}
+.single-run .content-page .aligned-section {
+  min-width: 0;
+}
+.single-run .section-cards > .aligned-cell {
+  padding: var(--card-pad);
+}
+.single-run .metadata-field .section-cards > .aligned-cell {
+  padding: 0;
+}
+.single-scene > .aligned-section,
+.single-run .pipeline-view > .aligned-section:has(.section-cards) {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.single-scene > .aligned-section > .shared-section-heading {
+  margin: 0;
+  padding: var(--card-pad) var(--card-pad) 8px;
+}
+.single-scene .aligned-cell > :is(.frame-card, .transcript-card) {
+  border: 0;
+  box-shadow: none;
+}
+.single-scene .panel-heading {
+  padding-inline: var(--card-pad);
+}
+.scene-profile > .aligned-section > .section-cards > .aligned-cell,
+.single-run .pipeline-view > .aligned-section .section-cards > .aligned-cell {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.single-run .pipeline-view > .aligned-section:has(.section-cards) {
+  padding: var(--card-pad);
+}
+.single-run .pipeline-view .shared-section-heading:has(.eyebrow) {
+  display: flex;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.single-run .pipeline-view .shared-section-heading:has(.eyebrow) h3 {
+  order: -1;
+}
+.single-run .pipeline-view .shared-section-heading .eyebrow {
+  margin: 0;
+  font-size: 10px;
+}
+.single-run .device-details > div {
+  grid-template-columns: minmax(118px, 30%) minmax(0, 1fr);
+}
+.selected-stage .long-text + .badge {
+  margin-top: 8px;
+}
+.narrative-section .long-text {
+  text-wrap: pretty;
+}
+.field-difference {
+  display: inline-block;
+  margin-inline-start: 8px;
+  color: var(--amber);
+  background: var(--soft-amber);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.compare-runs .tags > span:not(.unique-tag, .muted) {
+  background: var(--surface-soft);
+  border-color: var(--line);
+  color: var(--secondary);
+}
+.tags .unique-tag {
+  font-weight: 650;
+}
+.aligned-columns.is-comparing {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space);
+}
+.comparison-headings {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+}
+.column-label {
+  overflow-wrap: anywhere;
+}
+.column-label > span {
+  min-width: 0;
+}
+.comparison-headings .aligned-cell:last-child .column-label {
+  color: var(--violet);
+}
+.tags span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.section-cards .long-text {
+  white-space: pre-wrap;
+}
+
+@container workspace (min-width: 620px) {
+  .single-scene {
+    grid-template-columns: minmax(0, 1.6fr) minmax(250px, 1fr);
+    align-items: start;
+  }
+  .single-scene > .aligned-section {
+    align-self: stretch;
+  }
+  .single-scene .scene-dialogue {
+    display: flex;
+    flex-direction: column;
+  }
+  .single-scene .scene-dialogue > .aligned-columns {
+    flex: 1;
+  }
+  .single-scene .transcript-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .single-scene .transcript-lines {
+    flex: 1 1 0px;
+    min-height: 8rem;
+    max-height: none;
+    contain: size;
+  }
+  .single-scene .transcript-lines:has(> .empty) {
+    flex-basis: auto;
+    contain: none;
+  }
+}
+
+@container workspace (min-width: 840px) {
+  .single-run
+    :is(.overview-view, .evaluation-view, .pipeline-view, .performance-view) {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-content: start;
+    align-items: stretch;
+    gap: var(--space);
+  }
+  .single-run
+    :is(.overview-view, .evaluation-view, .pipeline-view, .performance-view)
+    > * {
+    grid-column: 1 / -1;
+    margin-block: 0;
+    min-width: 0;
+  }
+  .single-run .overview-view > .metadata-field,
+  .single-run .performance-view > .resource-section {
+    grid-column: span 2;
+  }
+  .single-run
+    .overview-view
+    > :is(
+      .narrative-section,
+      [data-section="Visual style"],
+      [data-section="Subgenres"],
+      [data-section="Mood"]
+    ),
+  .single-run
+    .evaluation-view
+    > .aligned-section:not([data-section="Metadata evaluation"]),
+  .single-run
+    .pipeline-view
+    > :is([data-section="Configuration"], .selected-stage),
+  .single-run
+    .performance-view.has-device
+    > :is(
+      [data-section="Execution summary"],
+      [data-section="Inference hardware"]
+    ) {
+    grid-column: span 3;
+  }
+  .single-run
+    :is(.evaluation-view, .pipeline-view, .performance-view)
+    > .aligned-section:has(> .section-cards, > .shared-reference) {
+    display: flex;
+    flex-direction: column;
+  }
+  .single-run .aligned-section > :is(.section-cards, .shared-reference) {
+    flex: 1;
+  }
+  .single-run
+    .evaluation-view
+    :is([data-section="Synopsis"], [data-section="Plot summary"])
+    .long-text {
+    max-height: 22rem;
+    overflow-y: auto;
+    padding-inline-end: 8px;
+  }
+  .single-run .performance-view .execution-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .single-run .performance-view .execution-stats > div {
+    display: block;
+  }
+}
+@container workspace (min-width: 960px) and (max-width: 1090px) {
+  .scene-layout {
+    grid-template-columns: 172px minmax(0, 1fr);
+  }
+}
+
+@container workspace (max-width: 959px) {
+  .scene-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding-top: 16px;
+  }
+  .window-index {
+    position: static;
+    max-height: none;
+    padding: 7px;
+    overflow: hidden;
+  }
+  .index-title {
+    display: none;
+  }
+  .window-list {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 1px;
+  }
+  .window-list > button {
+    flex: none;
+    gap: 8px;
+  }
+  .window-dot {
+    display: none;
+  }
+}
+@container workspace (min-width: 620px) and (max-width: 839px) {
+  .single-run :is(.overview-view, .evaluation-view, .pipeline-view) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: var(--space);
+  }
+  .single-run :is(.overview-view, .evaluation-view, .pipeline-view) > * {
+    min-width: 0;
+    grid-column: 1 / -1;
+    margin-block: 0;
+  }
+  .single-run .overview-view > .metadata-field,
+  .single-run
+    .evaluation-view
+    > .aligned-section:not([data-section="Metadata evaluation"]),
+  .single-run
+    .pipeline-view
+    > :is([data-section="Configuration"], .selected-stage) {
+    grid-column: span 1;
+  }
+}
+@container workspace (max-width: 619px) {
+  .single-run .overview-view .metadata-field + .metadata-field {
+    margin-top: 12px;
+  }
+  .heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .page-heading,
+  .filter {
+    flex-wrap: wrap;
+  }
+  .run-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .run-controls select {
+    max-width: 100%;
+    width: 100%;
+  }
+  .run-controls > label {
+    flex: 1 1 90px;
+  }
+  .scene-layout {
+    padding-inline: 12px;
+  }
+  .scene-toolbar h2 {
+    font-size: 20px;
+  }
+  .scene-toolbar > div {
+    gap: 6px;
+  }
+  .scene-toolbar .time-pill {
+    font-size: 12px;
+  }
+  .comparison-summary-body > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .comparison-summary-body strong {
+    grid-column: 1 / -1;
+  }
+  .compare-runs .aligned-columns {
+    gap: 8px;
+  }
+  .compare-runs .section-cards > .aligned-cell {
+    padding: 12px 10px;
+  }
+  .compare-runs .long-text,
+  .compare-runs .section-cards .tags > span {
+    font-size: 13px;
+  }
+  .compare-runs .aligned-section {
+    margin-bottom: 18px;
+  }
+  .compare-runs .scene-sections .hero-frame {
+    margin: 4px;
+    width: calc(100% - 8px);
+    min-height: 120px;
+  }
+  .compare-runs .scene-sections .frame-filmstrip {
+    padding-inline: 4px;
+  }
+  .compare-runs .placeholder-content {
+    padding: 4px;
+    gap: 4px;
+  }
+  .compare-runs .placeholder-icon {
+    display: none;
+  }
+  .compare-runs .placeholder-content > span {
+    font-size: 11px;
+  }
+  .compare-runs .frame-label,
+  .compare-runs .frame-time {
+    font-size: 8px;
+    bottom: 3px;
+  }
+  .compare-runs .frame-label {
+    left: 3px;
+  }
+  .compare-runs .frame-time {
+    right: 3px;
+  }
+  .compare-runs .frame-bottom label {
+    white-space: normal;
+  }
+  .compare-runs .scene-sections .transcript-tools {
+    padding: 8px;
+  }
+  .compare-runs .scene-sections .transcript-tools :is(.search, select) {
+    min-width: 0;
+    width: 100%;
+  }
+  .compare-runs .transcript-lines > button {
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 8px;
+  }
+  .compare-runs .device-details > div,
+  .compare-runs .execution-stats > div {
+    display: block;
+  }
+  .compare-runs .trace-plot-padding,
+  .compare-runs .trace-band-caption,
+  .compare-runs .trace-cache-note,
+  .compare-runs .phase-model {
+    padding-inline: 4px;
+  }
+  .compare-runs .trace-axis-labels {
+    margin-inline: 4px;
+  }
+  .compare-runs .trace-stage-heading {
+    gap: 4px;
+  }
+  .compare-runs .resource-chart-heading,
+  .compare-runs .resource-readings {
+    padding-inline: 8px;
+  }
+}
+@container workspace (min-width: 480px) and (max-width: 619px) {
+  .single-run .overview-view {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: var(--space);
+  }
+  .single-run .overview-view > .section-heading {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .single-run .overview-view .metadata-field + .metadata-field {
+    margin-top: 0;
+  }
+}
+@media (min-width: 701px) and (max-width: 1024px) {
+  .rail[data-expanded="true"] button {
+    padding-inline: 8px;
+    gap: 8px;
+  }
+  .app-shell {
+    --rail-expanded: 172px;
+  }
+}
+@media (max-width: 700px) {
+  .rail-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0 0 0 var(--rail-expanded);
+    z-index: 29;
+    background: #111b3038;
+  }
+  .app-shell {
+    --rail-collapsed: 48px;
+    --rail-expanded: 184px;
+  }
+  .rail {
+    position: fixed;
+    left: 0;
+    padding: 4px;
+  }
+  .rail[data-expanded="true"] {
+    box-shadow: 8px 0 24px #111d352b;
+  }
+  .workspace {
+    margin-left: var(--rail-collapsed);
+  }
+  .wordmark .product-tag {
+    display: none;
+  }
+}
+@media (max-height: 540px) {
+  .rail {
+    gap: 4px;
+  }
+  .rail button {
+    min-height: 34px;
+  }
+  .rail-sections,
+  .rail-bottom {
+    padding-top: 5px;
+  }
+}
+
+@media (max-height: 540px) and (min-width: 600px) {
+  .topbar {
+    height: 42px;
+  }
+  .dev-preview-banner {
+    padding-block: 3px;
+  }
+  .run-header {
+    padding-block: 8px 10px;
+  }
+  .breadcrumb {
+    margin-bottom: 5px;
+  }
+  .heading-row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-bottom: 0;
+  }
+  .title-line h1 {
+    font-size: 21px;
+  }
+  .run-meta {
+    margin-top: 2px;
+  }
+  .run-controls {
+    width: auto;
+    gap: 5px;
+  }
+  .run-controls label {
+    padding: 5px 6px;
+    gap: 4px;
+  }
+  .run-controls select {
+    max-width: 105px;
+  }
+  .comparison-banner,
+  .comparison-summary,
+  .warnings {
+    padding-block: 4px;
+  }
+}
