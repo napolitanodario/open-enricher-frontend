@@ -929,7 +929,6 @@ export default function Home() {
 type SceneSections = {
   frames: React.ReactNode;
   transcript: React.ReactNode;
-  hasDialogue: boolean;
   visual: WindowData["visual"];
   summary: React.ReactNode;
   source: React.ReactNode;
@@ -977,7 +976,12 @@ function SceneSectionsView({
     </AlignedSection>
   );
   const transcript = (
-    <AlignedSection title="Dialogue transcript" entries={entries} card={false}>
+    <AlignedSection
+      title="Dialogue transcript"
+      entries={entries}
+      card={false}
+      className="scene-dialogue"
+    >
       {(_, i) => sections[i]?.transcript || missing}
     </AlignedSection>
   );
@@ -989,13 +993,13 @@ function SceneSectionsView({
   if (entries.length === 1) {
     return (
       <div className="scene-sections single-scene">
+        {evidence}
+        {transcript}
         <div className="scene-profile">{profile}</div>
-        {sections[0].hasDialogue ? transcript : evidence}
         <div className="scene-profile">
           {visualDetails}
           {summary}
         </div>
-        {sections[0].hasDialogue ? evidence : transcript}
         {sections[0].source}
       </div>
     );
@@ -1003,11 +1007,11 @@ function SceneSectionsView({
   return (
     <div className="scene-sections">
       <ColumnHeadings entries={entries} />
+      {evidence}
+      {transcript}
       {profile}
       {visualDetails}
       {summary}
-      {evidence}
-      {transcript}
       <AlignedSection title="Original artifacts" entries={entries}>
         {(_, i) => sections[i]?.source || missing}
       </AlignedSection>
@@ -1049,7 +1053,7 @@ function ScenePanel({
     setTime(w.start);
     setQuery("");
     setSpeaker("all");
-  }, [w.start, run.id]);
+  }, [w, run.id]);
   useEffect(() => {
     setImageError(false);
     const source = frame?.file ? findFrame(run, frame.file) : undefined;
@@ -1156,25 +1160,32 @@ function ScenePanel({
               </span>
             )}
         </button>
-        <div className="frame-filmstrip">
-          {w.frames.map((f: Doc, i) => (
-            <button
-              key={i}
-              className={sample === i ? "active" : ""}
-              ref={sample === i ? revealSelection : undefined}
-              aria-pressed={sample === i}
-              onClick={() => chooseFrame(i)}
-              aria-label={`Select frame ${i + 1}`}
-            >
-              <FrameThumb run={run} frame={w.frames[i]} />
-              <span>
-                {f.timestamp_seconds !== undefined
-                  ? clock(Number(f.timestamp_seconds))
-                  : String(i + 1).padStart(2, "0")}
-              </span>
-            </button>
-          ))}
-        </div>
+        {w.frames.length > 0 && (
+          <div
+            key={w.windowNumber}
+            className="frame-filmstrip"
+            role="group"
+            aria-label="Scene frames"
+          >
+            {w.frames.map((f: Doc, i) => (
+              <button
+                key={i}
+                className={sample === i ? "active" : ""}
+                ref={sample === i ? revealSelection : undefined}
+                aria-pressed={sample === i}
+                onClick={() => chooseFrame(i)}
+                aria-label={`Select frame ${i + 1}`}
+              >
+                <FrameThumb run={run} frame={f} />
+                <span>
+                  {f.timestamp_seconds !== undefined
+                    ? clock(Number(f.timestamp_seconds))
+                    : String(i + 1).padStart(2, "0")}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="frame-bottom">
           <span>
             {Number.isFinite(frame?.timestamp_seconds) ? (
@@ -1280,7 +1291,6 @@ function ScenePanel({
       </section>
     ),
     visual: w.visual,
-    hasDialogue: lines.length > 0,
     summary: (
       <>
         <TextValue
